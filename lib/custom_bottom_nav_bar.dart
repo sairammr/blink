@@ -17,9 +17,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
   late int currentPage;
   late TabController tabController;
   final List<Color> colors = [
-    Colors.yellow,
-    Colors.red,
-    Colors.green,
+    Color.fromARGB(255,255,255,255),
+    Color.fromARGB(255,245,214,222),
+    Color.fromARGB(255, 169, 29,58),
   ];
 
   @override
@@ -51,8 +51,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final Color unselectedColor = colors[currentPage].computeLuminance() < 0.5 ? Color.fromARGB(255, 196, 87, 87) : Colors.white;
-    final Color unselectedColorReverse = colors[currentPage].computeLuminance() < 0.5 ? Colors.white : const Color.fromARGB(255, 212, 55, 55);
 
     return BottomBar(
       clip: Clip.none,
@@ -62,15 +60,15 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
         clipBehavior: Clip.none,
         children: [
           TabBar(
-            overlayColor: MaterialStateProperty.all(Color.fromARGB(221, 184, 47, 47)),
             indicatorPadding: const EdgeInsets.fromLTRB(6, 0, 6, 0),
             controller: tabController,
             indicator: UnderlineTabIndicator(
               borderSide: BorderSide(
-                color: currentPage <= 4 ? colors[currentPage] : unselectedColor,
+                color: currentPage <= 4 ? colors[currentPage] : colors[1],
                 width: 4,
+                
               ),
-              insets: EdgeInsets.fromLTRB(12, 0, 12, 8),
+              insets: EdgeInsets.fromLTRB(12, 5, 12, 8),
             ),
             tabs: [
               SizedBox(
@@ -79,7 +77,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
                 child: Center(
                   child: Icon(
                     Icons.home,
-                    color: currentPage == 0 ? colors[0] : unselectedColor,
+                    color: currentPage == 0 ? colors[0] : colors[1],
                   ),
                 ),
               ),
@@ -89,7 +87,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
                 child: Center(
                   child: Icon(
                     Icons.search,
-                    color: currentPage == 1 ? colors[1] : unselectedColor,
+                    color: currentPage == 1 ? colors[0] : colors[1],
                   ),
                 ),
               ),
@@ -99,7 +97,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
                 child: Center(
                   child: Icon(
                     Icons.add,
-                    color: currentPage == 2 ? colors[2] : unselectedColorReverse,
+                    color: currentPage == 2 ? colors[0] : colors[1],
                   ),
                 ),
               ),
@@ -107,30 +105,17 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
           ),
         ],
       ),
-      icon: (width, height) => Center(
-        child: IconButton(
-          padding: EdgeInsets.zero,
-          onPressed: null,
-          icon: Icon(
-            Icons.arrow_upward_rounded,
-            color: unselectedColor,
-            size: width,
-          ),
-        ),
-      ),
+      
       borderRadius: BorderRadius.circular(500),
-      duration: Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 200),
       curve: Curves.decelerate,
       showIcon: true,
       width: MediaQuery.of(context).size.width * 0.6,
-      barColor: colors[currentPage].computeLuminance() > 0.5 ? const Color.fromARGB(255, 209, 58, 58) : Colors.white,
+      barColor: colors[2],
       start: 2,
       end: 0,
       offset: 10,
       barAlignment: Alignment.bottomCenter,
-      iconHeight: 30,
-      iconWidth: 30,
-      reverse: false,
       barDecoration: BoxDecoration(
         color: colors[currentPage],
         borderRadius: BorderRadius.circular(500),

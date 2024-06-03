@@ -53,9 +53,11 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
   Widget build(BuildContext context) {
 
     return BottomBar(
+      
       clip: Clip.none,
       fit: StackFit.expand,
       child: Stack(
+        
         alignment: Alignment.center,
         clipBehavior: Clip.none,
         children: [
@@ -68,7 +70,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
                 width: 4,
                 
               ),
-              insets: EdgeInsets.fromLTRB(12, 5, 12, 8),
+              insets: const EdgeInsets.fromLTRB(12, 0, 12, 8),
             ),
             tabs: [
               SizedBox(
@@ -132,7 +134,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
         controller: tabController,
         dragStartBehavior: DragStartBehavior.down,
         physics: const BouncingScrollPhysics(),
-        children: [
+        children: const [
           HomePage(),
           SearchPage(),
           AddPage(),

@@ -45,7 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
             padding: const EdgeInsets.only(right: 25),
             child: Icon(Icons.notification_add_rounded,),
           )],
-          backgroundColor: Color.fromARGB(255, 209, 142, 142),
+          backgroundColor: Color.fromRGBO(238, 238, 238, 100),
         ),
         body: const CustomBottomNavBar(),
       ),

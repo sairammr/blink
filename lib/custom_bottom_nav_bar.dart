@@ -74,31 +74,36 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
             ),
             tabs: [
               SizedBox(
-                height: 55,
+                height: 72,
                 width: 40,
                 child: Center(
                   child: Icon(
                     Icons.home,
+                                        size: 33,
+
                     color: currentPage == 0 ? colors[0] : colors[1],
                   ),
                 ),
               ),
               SizedBox(
-                height: 55,
+                height: 72,
                 width: 40,
                 child: Center(
                   child: Icon(
                     Icons.search,
+                    size: 33,
+
                     color: currentPage == 1 ? colors[0] : colors[1],
                   ),
                 ),
               ),
               SizedBox(
-                height: 55,
+                height: 72,
                 width: 40,
                 child: Center(
                   child: Icon(
                     Icons.add,
+                    size: 33,
                     color: currentPage == 2 ? colors[0] : colors[1],
                   ),
                 ),
@@ -109,14 +114,12 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
       ),
       
       borderRadius: BorderRadius.circular(500),
+      
       duration: Duration(milliseconds: 200),
       curve: Curves.decelerate,
       showIcon: true,
       width: MediaQuery.of(context).size.width * 0.6,
       barColor: colors[2],
-      start: 2,
-      end: 0,
-      offset: 10,
       barAlignment: Alignment.bottomCenter,
       barDecoration: BoxDecoration(
         color: colors[currentPage],
@@ -128,8 +131,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
       ),
       hideOnScroll: true,
       scrollOpposite: false,
-      onBottomBarHidden: () {},
-      onBottomBarShown: () {},
       body: (context, controller) => TabBarView(
         controller: tabController,
         dragStartBehavior: DragStartBehavior.down,

@@ -70,7 +70,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
                 width: 4,
                 
               ),
-              insets: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              insets: const EdgeInsets.fromLTRB(12, 0, 12, 15),
             ),
             tabs: [
               SizedBox(
@@ -125,9 +125,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
         color: colors[currentPage],
         borderRadius: BorderRadius.circular(500),
       ),
-      iconDecoration: BoxDecoration(
-        color: colors[currentPage],
-        borderRadius: BorderRadius.circular(500),
+    iconDecoration: BoxDecoration(
+       color: colors[currentPage],
+       borderRadius: BorderRadius.circular(500),
       ),
       hideOnScroll: true,
       scrollOpposite: false,

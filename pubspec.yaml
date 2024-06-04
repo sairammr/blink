@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_floating_bottom_bar: ^1.2.0
   simple_circular_progress_bar: ^1.0.2
+  syncfusion_flutter_charts: ^25.2.7
 
 dev_dependencies:
   flutter_test:

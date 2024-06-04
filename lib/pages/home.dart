@@ -48,7 +48,7 @@ class _HomePageState extends State<HomePage> {
             width: width * .8,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
-              color: Colors.red,
+              color: Color.fromRGBO(245, 214, 222, 1),
             ),
             child: Column(
               children: [
@@ -59,15 +59,15 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       InkWell(
                         onTap: back,
-                        child: Icon(Icons.arrow_back_ios_new_rounded),
+                        child: const Icon(Icons.arrow_back_ios_new_rounded),
                       ),
                       Text(
                         days[current],
-                        style: TextStyle(fontSize: 24, color: const Color.fromARGB(255, 0, 0, 0)),
+                        style: const TextStyle(fontSize: 24, color: Color.fromARGB(255, 0, 0, 0)),
                       ),
                       InkWell(
                         onTap: forward,
-                        child: Icon(Icons.arrow_forward_ios_rounded),
+                        child: const Icon(Icons.arrow_forward_ios_rounded),
                       ),
                     ],
                   ),
@@ -83,7 +83,7 @@ class _HomePageState extends State<HomePage> {
                   onGetText: (value) {
                     return Text(
                       '${value.toInt()/10.toInt()} Blinks ',
-                      style: TextStyle(color: const Color.fromARGB(255, 0, 0, 0), fontSize: 20),
+                      style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0), fontSize: 20),
                     );
                   },
                   progressColors: const [
@@ -108,7 +108,7 @@ class _HomePageState extends State<HomePage> {
                 width: width * .375,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: Colors.red,
+                  color: Color.fromRGBO(245, 214, 222, 1),
                 ),
               ),
               Container(
@@ -118,7 +118,7 @@ class _HomePageState extends State<HomePage> {
                 width: width * .375,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: Colors.red,
+                  color: Color.fromRGBO(245, 214, 222, 1),
                 ),
               ),
             ],
@@ -128,3 +128,4 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+

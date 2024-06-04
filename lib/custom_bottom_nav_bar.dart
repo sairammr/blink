@@ -17,9 +17,9 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
   late int currentPage;
   late TabController tabController;
   final List<Color> colors = [
-    Color.fromARGB(255,255,255,255),
-    Color.fromARGB(255,245,214,222),
-    Color.fromARGB(255, 169, 29,58),
+    const Color.fromARGB(255,255,255,255),
+    const Color.fromARGB(255,245,214,222),
+    const Color.fromARGB(255, 169, 29,58),
   ];
 
   @override

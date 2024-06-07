@@ -56,6 +56,35 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
       
       clip: Clip.none,
       fit: StackFit.expand,
+      
+      borderRadius: BorderRadius.circular(500),
+      
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.decelerate,
+      showIcon: true,
+      width: MediaQuery.of(context).size.width * 0.6,
+      barColor: const Color.fromARGB(178, 131, 22, 46),
+      barAlignment: Alignment.bottomCenter,
+      barDecoration: BoxDecoration(
+        color: colors[2],
+        borderRadius: BorderRadius.circular(500),
+      ),
+    iconDecoration: BoxDecoration(
+       color: colors[currentPage],
+       borderRadius: BorderRadius.circular(500),
+      ),
+      hideOnScroll: true,
+      scrollOpposite: false,
+      body: (context, controller) => TabBarView(
+        controller: tabController,
+        dragStartBehavior: DragStartBehavior.down,
+        physics: const BouncingScrollPhysics(),
+        children: const [
+          HomePage(),
+          SearchPage(),
+          AddPage(),
+        ],
+      ),
       child: Stack(
         
         alignment: Alignment.center,
@@ -66,7 +95,7 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
             controller: tabController,
             indicator: UnderlineTabIndicator(
               borderSide: BorderSide(
-                color: currentPage <= 4 ? colors[currentPage] : colors[1],
+                color: currentPage <= 4 ? colors[0] : colors[1],
                 width: 4,
                 
               ),
@@ -110,35 +139,6 @@ class _CustomBottomNavBarState extends State<CustomBottomNavBar> with SingleTick
               ),
             ],
           ),
-        ],
-      ),
-      
-      borderRadius: BorderRadius.circular(500),
-      
-      duration: Duration(milliseconds: 200),
-      curve: Curves.decelerate,
-      showIcon: true,
-      width: MediaQuery.of(context).size.width * 0.6,
-      barColor: colors[2],
-      barAlignment: Alignment.bottomCenter,
-      barDecoration: BoxDecoration(
-        color: colors[currentPage],
-        borderRadius: BorderRadius.circular(500),
-      ),
-    iconDecoration: BoxDecoration(
-       color: colors[currentPage],
-       borderRadius: BorderRadius.circular(500),
-      ),
-      hideOnScroll: true,
-      scrollOpposite: false,
-      body: (context, controller) => TabBarView(
-        controller: tabController,
-        dragStartBehavior: DragStartBehavior.down,
-        physics: const BouncingScrollPhysics(),
-        children: const [
-          HomePage(),
-          SearchPage(),
-          AddPage(),
         ],
       ),
     );

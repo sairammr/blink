@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
 class TodayGraph extends StatefulWidget {
+  const TodayGraph({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _TodayGraphState createState() => _TodayGraphState();
 }
 
@@ -13,7 +16,7 @@ class _TodayGraphState extends State<TodayGraph> {
   void initState() {
     super.initState();
     // Simulate data fetching delay
-    Future.delayed(Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 2), () {
       setState(() {
         _isLoading = false;
       });
@@ -26,14 +29,12 @@ class _TodayGraphState extends State<TodayGraph> {
   }
 
   Widget _buildLoading() {
-    return Center(
+    return const Center(
       child: CircularProgressIndicator(),
     );
   }
 
   Widget _buildChart() {
-    return Container(
-      child: SfCartesianChart(),
-    );
+    return const SfCartesianChart();
   }
 }

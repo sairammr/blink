@@ -2,7 +2,6 @@
 
 import 'package:blink/components/todayGraph.dart';
 import 'package:flutter/material.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
 
 class SearchPage extends StatelessWidget {
   const SearchPage({super.key});
@@ -14,7 +13,7 @@ class SearchPage extends StatelessWidget {
     return Scaffold(
       body: SingleChildScrollView(
         child: Container(
-                          margin: EdgeInsets.only(top : 0 , left : width * 0.04, right: width*0.04),
+                          margin: EdgeInsets.only(top : 19 , left : width * 0.04, right: width*0.04),
 
           decoration: BoxDecoration(
 color :Color.fromRGBO(245, 214, 222, 1) ,

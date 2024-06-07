@@ -1,9 +1,7 @@
 import 'package:blink/main.dart';
-import 'package:blink/pages/home.dart';
 import 'package:flutter/material.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MaterialApp(
@@ -16,6 +14,7 @@ class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _LandingPageState createState() => _LandingPageState();
 }
 
@@ -23,11 +22,11 @@ class _LandingPageState extends State<LandingPage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 1), () {
       Navigator.push(
         context,
         PageTransition(
-          duration: Duration(seconds: 1),
+          duration: const Duration(seconds: 1),
           type: PageTransitionType.bottomToTop, 
           child: const Landing2(),
         ),
@@ -43,9 +42,10 @@ class _LandingPageState extends State<LandingPage> {
   }
 }
 class Landing2 extends StatefulWidget {
-  const Landing2({Key? key}) : super(key: key);
+  const Landing2({super.key});
   
   @override
+  // ignore: library_private_types_in_public_api
   _Landing2State createState() => _Landing2State();
 }
 
@@ -58,8 +58,8 @@ class _Landing2State extends State<Landing2> {
         context,
         PageTransition(
           duration: const Duration(seconds: 1),
-          type: PageTransitionType.bottomToTop, 
-          child:  MyApp(),
+          type: PageTransitionType.fade, 
+          child:  const MyApp(),
         ),
       );
     });
@@ -67,6 +67,7 @@ class _Landing2State extends State<Landing2> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         // Disable back gesture

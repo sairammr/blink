@@ -1,3 +1,5 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:flutter/material.dart';
 import 'package:simple_circular_progress_bar/simple_circular_progress_bar.dart';
 
@@ -48,7 +50,7 @@ class _HomePageState extends State<HomePage> {
             width: width * .8,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(25),
-              color: Color.fromRGBO(245, 214, 222, 1),
+              color: const Color.fromRGBO(245, 214, 222, 1),
             ),
             child: Column(
               children: [
@@ -87,11 +89,11 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   progressColors: const [
-                    Colors.cyan,
-                    Colors.green,
-                    Colors.amberAccent,
-                    Colors.redAccent,
-                    Colors.purpleAccent
+                    Color.fromARGB(162, 63, 53, 55),
+                    Color.fromARGB(206, 71, 48, 53),
+                    Color.fromARGB(255, 77, 31, 41),
+                    Color.fromARGB(255, 75, 14, 27),
+                    Color.fromARGB(255, 131, 7, 34)
                   ],
                   backColor: Colors.blueGrey,
                 ),
@@ -108,7 +110,7 @@ class _HomePageState extends State<HomePage> {
                 width: width * .375,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: Color.fromRGBO(245, 214, 222, 1),
+                  color: const Color.fromRGBO(245, 214, 222, 1),
                 ),
               ),
               Container(
@@ -118,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                 width: width * .375,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(25),
-                  color: Color.fromRGBO(245, 214, 222, 1),
+                  color: const Color.fromRGBO(245, 214, 222, 1),
                 ),
               ),
             ],

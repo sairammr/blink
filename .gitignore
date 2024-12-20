@@ -42,3 +42,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /blink_rust_imp/target
+blink_rust_imp/Cargo.lock

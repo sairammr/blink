@@ -1,0 +1,8 @@
+[package]
+name = "blink"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+opencv = "0.68" 
+native-dialog = "0.6"

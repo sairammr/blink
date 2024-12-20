@@ -20,7 +20,6 @@ impl FaceDetector {
         eye_cascade.load("src/haarcascade_eye.xml")?;
         Ok(Self { eye_cascade })
     }
-
     fn detect_eyes(&mut self, frame: &Mat) -> Result<Vector<core::Rect>> {
         let mut gray = Mat::default();
         imgproc::cvt_color(frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0)?;
@@ -37,10 +36,6 @@ impl FaceDetector {
         )?;
         Ok(eyes)
     }
-}
-
-fn show_alert(message: &str) {
-    println!("ALERT: {}", message);
 }
 
 fn main() -> Result<()> {
@@ -91,7 +86,7 @@ fn main() -> Result<()> {
         // Check for alert messages
         if let Ok(message) = rx.try_recv() {
             thread::spawn(move || {
-                show_alert(&message);
+                println!("Alert: {}",message);
             });
         }
 

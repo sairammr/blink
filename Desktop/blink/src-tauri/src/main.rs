@@ -8,7 +8,6 @@ fn main() {
     let stop_signal = should_stop.clone();
 
     tauri::Builder::default()
-        .setup(|_app| {
     .setup(move |_app| {
         std::thread::spawn(move || {
             while !stop_signal.load(Ordering::SeqCst) {

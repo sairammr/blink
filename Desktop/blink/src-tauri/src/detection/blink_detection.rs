@@ -6,7 +6,7 @@ use opencv::{
     imgproc,
     Result,
 };
-
+use chrono::{NaiveDateTime, Utc};
 struct FaceDetector {
     eye_cascade: objdetect::CascadeClassifier,
 }
@@ -38,6 +38,8 @@ impl FaceDetector {
 #[tauri::command]
 pub fn blink_detection() -> Result<(), String> {
     async_runtime::spawn(async move {
+        let mut last_update_time= Instant::now();
+        let mut blink_stamps :Vec<NaiveDateTime> = Vec::new();
         use std::{sync::mpsc, thread, time::Instant};
         use opencv::{prelude::*, videoio, core};
 
@@ -78,12 +80,20 @@ pub fn blink_detection() -> Result<(), String> {
             // Blink detection logic
             if prev_eyes_count == 2 && current_eyes < 2 {
                 if last_blink_time.elapsed().as_millis() > 100 {
+                    if last_update_time.elapsed().as_secs() > 20{
+                        //do some db insert of this var
+                        //blink_stamps
+                        // handle error pa
+                        blink_stamps.clear();
+                        last_update_time = Instant::now();
+                    }
                     blink_counter += 1;
+                    blink_stamps.push(Utc::now().naive_utc());
                     last_blink_time = Instant::now();
                 }
             }
             prev_eyes_count = current_eyes;
-
+            println!("{:?}",blink_stamps);
             let elapsed_secs = start_time.elapsed().as_secs();
             println!("Blinks: {} | Time: {}s", blink_counter, elapsed_secs);
         }

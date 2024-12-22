@@ -1,0 +1,17 @@
+[] - > initial
+
+add timestamp to it when a blink is detected
+
+after 20 sec add the count to memcache (length of array)
+
+every 20 mins calculate average and push to permanent and memcache
+
+delete all 1 sec entry taken before 8 hours from time()
+
+so entries in total for 24hours
+
+3 per min
+180 per hour
+1440 + 16 per day
+
+flush average from memcache when assured that it is available in permanent storage

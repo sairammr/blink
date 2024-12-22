@@ -1,49 +1,59 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from '@tauri-apps/api/event';
 import "./App.css";
-
+interface BlinkEvent {
+  payload: string;
+}
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  
+  const [detectionStatus, setDetectionStatus] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  useEffect(() => {
+    startDetection();
+    
+    const unlisten = listen('blink-update', (event: BlinkEvent) => {
+      setDetectionStatus(event.payload);
+    });
+
+    return () => {
+      unlisten.then(unlistenFn => unlistenFn());
+    };
+  }, []);
+
+  async function startDetection() {
+    try {
+      await invoke("start_detection");
+      setIsRunning(true);
+    } catch (error) {
+      console.error("Failed to start detection:", error);
+      setDetectionStatus("Error: Failed to start eye detection");
+    }
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vitejs.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+      <h1>Eye Blink Detection</h1>
+      
+      <div className="status-container">
+        <h2>Detection Status</h2>
+        <div className={`status-indicator ${isRunning ? 'running' : 'stopped'}`}>
+          {isRunning ? 'Running' : 'Stopped'}
+        </div>
+        
+        <div className="blink-stats">
+          {detectionStatus}
+        </div>
       </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
 
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      <div className="controls">
+        {!isRunning && (
+          <button onClick={startDetection}>
+            Start Detection
+          </button>
+        )}
+      </div>
     </main>
   );
 }

@@ -7,10 +7,13 @@ use opencv::{
     Result,
 };
 use chrono::{NaiveDateTime, Utc};
+use std::{sync::mpsc, thread, time::Instant};
+use std::sync::Arc;
+use crate::IntervalEntry;
 struct FaceDetector {
     eye_cascade: objdetect::CascadeClassifier,
 }
-
+use crate::DBHandler;
 impl FaceDetector {
     fn new(cascade_path: &str) -> Result<Self> {
         let eye_cascade = objdetect::CascadeClassifier::new(cascade_path)?;
@@ -36,7 +39,7 @@ impl FaceDetector {
 }
 
 #[tauri::command]
-pub fn blink_detection() -> Result<(), String> {
+pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
     async_runtime::spawn(async move {
         use std::{sync::mpsc, thread, time::Instant};
         use opencv::{prelude::*, videoio, core};
@@ -50,7 +53,7 @@ pub fn blink_detection() -> Result<(), String> {
 
         let mut blink_counter = 0;
         let mut prev_eyes_count = 0;
-        let start_time = Instant::now();
+        let mut start_time = Instant::now();
         let mut last_blink_time = Instant::now();
 
         let (tx, rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel();
@@ -82,22 +85,28 @@ pub fn blink_detection() -> Result<(), String> {
                     last_blink_time = Instant::now();
                 }
             }
-            if start_time.elapsed().as_secs() >= 60{
-                start_time = Instant::now();
-                // insert_count()
-                //do db insert of this var -> last_blink_time & blink_counter
-                // handle error pa
-                blink_counter=0;
-            }
-            prev_eyes_count = current_eyes;
-            println!("Blinks: {} | Time: {}s", blink_counter, elapsed_secs);
-        }
 
-        drop(tx);
-        alert_thread.join().unwrap();
+            if start_time.elapsed().as_secs() >= 10 {
+                let blink_entry = IntervalEntry {
+                    blink_count: blink_counter,
+                    timestamp: chrono::Utc::now().naive_utc(),
+                };
+
+                // Insert blink data into DB
+                if let Err(e) = db_handler.insert_interval(blink_entry) {
+                    eprintln!("Error inserting blink data into DB: {}", e);
+                }
+
+                start_time = Instant::now();
+                blink_counter = 0;
+            }
+
+            prev_eyes_count = current_eyes;
+            println!("Blinks: {} | Time: {}s", blink_counter, start_time.elapsed().as_secs());
+        }
 
         Ok::<(), String>(())
     });
 
-    Ok::<(), String>(())
+    Ok(())
 }

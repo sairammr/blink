@@ -1,61 +1,59 @@
-import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from '@tauri-apps/api/event';
-import "./App.css";
-interface BlinkEvent {
-  payload: string;
-}
-function App() {
-  
-  const [detectionStatus, setDetectionStatus] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
+import React, { useState, useEffect } from 'react';
+import { BentoBox } from './components/BentoBox';
+import { CameraPreview } from './components/CameraPreview';
+import { Settings } from './components/Settings';
+import { BlinkStats } from './types';
+
+export function App() {  // Changed to named export
+  const [isDark, setIsDark] = useState(false);
+  const [stats, setStats] = useState<BlinkStats>({
+    todayCount: 0,
+    twentyMinAvg: 0,
+    hourlyAvg: 0
+  });
 
   useEffect(() => {
-    startDetection();
-    
-    const unlisten = listen('blink-update', (event: BlinkEvent) => {
-      setDetectionStatus(event.payload);
-    });
+    const interval = setInterval(() => {
+      setStats(prev => ({
+        todayCount: prev.todayCount + Math.floor(Math.random() * 3),
+        twentyMinAvg: Math.floor(Math.random() * 20),
+        hourlyAvg: Math.floor(Math.random() * 15)
+      }));
+    }, 5000);
 
-    return () => {
-      unlisten.then(unlistenFn => unlistenFn());
-    };
+    return () => clearInterval(interval);
   }, []);
 
-  async function startDetection() {
-    try {
-      await invoke("start_detection");
-      setIsRunning(true);
-    } catch (error) {
-      console.error("Failed to start detection:", error);
-      setDetectionStatus("Error: Failed to start eye detection");
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
-  }
+  }, [isDark]);
+
+  const handleLogout = () => {
+    console.log('Logging out...');
+  };
 
   return (
-    <main className="container">
-      <h1>Eye Blink Detection</h1>
-      
-      <div className="status-container">
-        <h2>Detection Status</h2>
-        <div className={`status-indicator ${isRunning ? 'running' : 'stopped'}`}>
-          {isRunning ? 'Running' : 'Stopped'}
-        </div>
-        
-        <div className="blink-stats">
-          {detectionStatus}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors p-4">
+      <div className="max-w-7xl mx-auto space-y-4">
+        <BentoBox username="John Doe" stats={stats} />
+        <div className="md:col-span-2">
+            <CameraPreview />
+          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          <div>
+            <Settings 
+              isDark={isDark}
+              onThemeToggle={() => setIsDark(!isDark)}
+              onLogout={handleLogout}
+            />
+          </div>
         </div>
       </div>
-
-      <div className="controls">
-        {!isRunning && (
-          <button onClick={startDetection}>
-            Start Detection
-          </button>
-        )}
-      </div>
-    </main>
+    </div>
   );
 }
-
-export default App;

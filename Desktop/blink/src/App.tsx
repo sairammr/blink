@@ -3,6 +3,7 @@ import { BentoBox } from './components/BentoBox';
 import { CameraPreview } from './components/CameraPreview';
 import { Settings } from './components/Settings';
 import { BlinkStats } from './types';
+import { invoke } from '@tauri-apps/api/core';
 
 export function App() {  // Changed to named export
   const [isDark, setIsDark] = useState(false);
@@ -11,7 +12,7 @@ export function App() {  // Changed to named export
     twentyMinAvg: 0,
     hourlyAvg: 0
   });
-
+  invoke('get_avg');
   useEffect(() => {
     const interval = setInterval(() => {
       setStats(prev => ({

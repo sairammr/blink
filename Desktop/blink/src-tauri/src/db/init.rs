@@ -141,7 +141,34 @@ impl DBHandler {
             FROM interval 
             ORDER BY id DESC 
             LIMIT 20
-        );");
+        );",params![]);
         Ok(())
     }
+    pub fn calculate_avg(&self) -> Result<Vec<AvgEntry>> {
+        let conn = self.pool.get().map_err(|_| rusqlite::Error::QueryReturnedNoRows)?;
+    
+        let mut stmt = conn.prepare(
+            "SELECT start_time, end_time, avg_value 
+             FROM avg ORDER BY id DESC LIMIT 20;"
+        )?;
+    
+        let rows = stmt.query_map([], |row| {
+            Ok(AvgEntry {
+                start_time: NaiveDateTime::parse_from_str(&row.get::<_, String>(0)?, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(e)))?,
+                end_time: NaiveDateTime::parse_from_str(&row.get::<_, String>(1)?, "%Y-%m-%d %H:%M:%S")
+                .map_err(|e| rusqlite::Error::FromSqlConversionFailure(1, rusqlite::types::Type::Text, Box::new(e)))?,
+                avg_value: row.get(2)?,
+            })
+        })?;
+    
+        let entries: Vec<AvgEntry> = rows.collect::<Result<Vec<_>>>()?;
+    
+        if entries.is_empty() {
+            println!("No average data found.");
+        }
+    
+        Ok(entries)
+    }
+    
 }

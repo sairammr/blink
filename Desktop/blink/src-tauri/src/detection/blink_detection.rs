@@ -115,8 +115,7 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
                 }
             }
 
-            // Check if one minute of eye presence has elapsed
-            if presence_duration >= Duration::from_secs(60) {
+            if presence_duration >= Duration::from_secs(5) {
                 let end_time = Utc::now().naive_utc();
                 
                 let metrics = IntervalEntry {

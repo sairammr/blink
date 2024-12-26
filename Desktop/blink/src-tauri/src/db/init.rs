@@ -1,7 +1,8 @@
 use rusqlite::{params, Connection};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime};
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct LogEntry {
@@ -13,6 +14,7 @@ pub struct LogEntry {
 pub struct IntervalEntry {
     pub timestamp: NaiveDateTime,
     pub blink_count: i32,
+    pub presence_duration:Duration,
 }
 
 #[derive(Debug)]

@@ -12,18 +12,41 @@ export function App() {  // Changed to named export
     twentyMinAvg: 0,
     hourlyAvg: 0
   });
-  invoke('get_avg');
+
+  const [blinkData, setBlinkData] = useState<{ start_time: string, end_time: string, avg_value: number }[]>([]);
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setStats(prev => ({
-        todayCount: prev.todayCount + Math.floor(Math.random() * 3),
-        twentyMinAvg: Math.floor(Math.random() * 20),
-        hourlyAvg: Math.floor(Math.random() * 15)
-      }));
-    }, 5000);
+      const fetchBlinkData = async () => {
+        try {
+          const data = await invoke('get_avg');
+          const parsedData = JSON.parse(data as string);
+          setBlinkData(parsedData);
+        } catch (error) {
+          console.error('Error fetching blink data:', error);
+        }
+      };
 
+      fetchBlinkData();
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (blinkData.length > 0) {
+      const todayCount = blinkData.reduce((acc, value) => acc + value.avg_value, 0);  // Total blinks for today
+      const twentyMinAvg = blinkData[blinkData.length - 1].avg_value;  // Last entry for 20 min average
+
+      const lastThreeBlinks = blinkData.slice(-3);
+      const hourlyAvg = lastThreeBlinks.length > 0 ? lastThreeBlinks.reduce((acc, value) => acc + value.avg_value, 0) / lastThreeBlinks.length : 0;  // Average of the last 3 values
+
+      setStats({
+        todayCount,
+        twentyMinAvg,
+        hourlyAvg,
+      });
+    }
+  }, [blinkData]);
 
   useEffect(() => {
     if (isDark) {
@@ -45,7 +68,6 @@ export function App() {  // Changed to named export
             <CameraPreview />
           </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
           <div>
             <Settings 
               isDark={isDark}

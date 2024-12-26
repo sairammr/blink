@@ -4,6 +4,15 @@ mod db;
 use db::init::{DBHandler, IntervalEntry, LogEntry, AvgEntry};
 use detection::blink_detection::blink_detection;
 use tauri::async_runtime;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
+struct AvgEntryResponse {
+    start_time: String,
+    end_time: String,
+    avg_value: i32,
+}
+
 
 fn main() {
     let db_path = "../../../../agarwal.sqlite"; // Path to SQLite database file
@@ -41,16 +50,19 @@ fn main() {
 async fn get_avg(db_handler: tauri::State<'_, Arc<DBHandler>>) -> Result<String, String> {
     match db_handler.calculate_avg() {
         Ok(entries) => {
-            let formatted_entries = entries
+            let response = entries
                 .iter()
-                .map(|entry| format!(
-                    "Start: {}, End: {}, Avg Value: {}",
-                    entry.start_time, entry.end_time, entry.avg_value
-                ))
-                .collect::<Vec<String>>()
-                .join("\n");
+                .map(|entry| AvgEntryResponse {
+                    start_time: entry.start_time.clone().to_string(),
+                    end_time: entry.end_time.clone().to_string(),
+                    avg_value: entry.avg_value,
+                })
+                .collect::<Vec<AvgEntryResponse>>();
 
-            Ok(format!("Average entries:\n{}", formatted_entries))
+            match serde_json::to_string(&response) {
+                Ok(json) => Ok(json),
+                Err(e) => Err(format!("Failed to serialize data: {}", e)),
+            }
         }
         Err(e) => {
             Err(format!("Failed to fetch average data: {}", e))

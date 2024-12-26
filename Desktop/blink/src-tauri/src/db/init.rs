@@ -12,9 +12,10 @@ pub struct LogEntry {
 
 #[derive(Debug)]
 pub struct IntervalEntry {
-    pub timestamp: NaiveDateTime,
+    pub start_time: NaiveDateTime,
+    pub end_time: NaiveDateTime,
     pub blink_count: i32,
-    pub presence_duration:Duration,
+    pub presence_duration: Duration,
 }
 
 #[derive(Debug)]
@@ -51,8 +52,10 @@ impl DBHandler {
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS interval (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    start_time TEXT NOT NULL,
+                    end_time TEXT NOT NULL,
                     blink_count INTEGER NOT NULL,
-                    timestamp TEXT NOT NULL
+                    presence_duration INTEGER NOT NULL
                 )",
                 [],
             )
@@ -73,14 +76,24 @@ impl DBHandler {
     }
 
     pub fn insert_interval(&self, interval: IntervalEntry) -> Result<(), String> {
-        let timestamp_str = interval.timestamp.format("%Y-%m-%d %H:%M:%S").to_string();
+        let start_time_str = interval.start_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        let end_time_str = interval.end_time.format("%Y-%m-%d %H:%M:%S").to_string();
+        let duration_ms = interval.presence_duration.as_millis() as i64;
+        
         let conn = self.pool.get().map_err(|e| e.to_string())?;
+        
         conn.execute(
-            "INSERT INTO interval (blink_count, timestamp) VALUES (?1, ?2)",
-            params![interval.blink_count, timestamp_str],
+            "INSERT INTO interval (start_time, end_time, blink_count, presence_duration) 
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                start_time_str,
+                end_time_str,
+                interval.blink_count,
+                duration_ms
+            ],
         )
         .map_err(|e| e.to_string())?;
-
+    
         Ok(())
     }
 

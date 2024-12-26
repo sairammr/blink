@@ -7,7 +7,7 @@ use opencv::{
     Result,
     videoio
 };
-use chrono::{NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc, DateTime};
 use std::{sync::mpsc, thread, time::{Instant, Duration}};
 use std::sync::Arc;
 use crate::IntervalEntry;
@@ -53,7 +53,6 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
 
         let mut blink_counter = 0;
         let mut prev_eyes_count = 0;
-        let mut interval_start = Instant::now();
         let mut last_blink_time = Instant::now();
         let mut last_frame_time = Instant::now();
         
@@ -63,7 +62,10 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
         
         // Add frame counting for eye absence
         let mut no_eyes_frame_count = 0;
-        const MAX_NO_EYES_FRAMES: i32 = 5; // Number of continuous frames to confirm eye absence
+        const MAX_NO_EYES_FRAMES: i32 = 5;
+
+        // Track interval timestamps
+        let mut interval_start_time = Utc::now().naive_utc();
 
         let (tx, rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel();
         let alert_thread = thread::spawn(move || {
@@ -93,7 +95,7 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
 
             // Update presence tracking with frame counting
             if current_eyes >= 1 {
-                no_eyes_frame_count = 0; // Reset the counter when eyes are detected
+                no_eyes_frame_count = 0;
                 if !eyes_present {
                     eyes_present = true;
                 }
@@ -113,12 +115,15 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
                 }
             }
 
-            // Check if one minute has elapsed
-            if presence_duration >= 60 {
+            // Check if one minute of eye presence has elapsed
+            if presence_duration >= Duration::from_secs(60) {
+                let end_time = Utc::now().naive_utc();
+                
                 let metrics = IntervalEntry {
+                    start_time: interval_start_time,
+                    end_time,
                     blink_count: blink_counter,
-                    presence_duration: presence_duration,
-                    timestamp: Utc::now().naive_utc(),
+                    presence_duration,
                 };
 
                 // Insert metrics into DB
@@ -127,7 +132,7 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
                 }
 
                 // Reset counters and timers
-                interval_start = Instant::now();
+                interval_start_time = end_time; // Start new interval immediately after previous one
                 blink_counter = 0;
                 presence_duration = Duration::from_secs(0);
                 no_eyes_frame_count = 0;
@@ -135,15 +140,14 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
 
             prev_eyes_count = current_eyes;
             println!(
-                "Blinks: {} | Time: {}s | Eye presence: {:.1}s | Eyes Present: {} | No Eyes Frames: {}", 
+                "Blinks: {} | Presence: {:.1}s | Eyes Present: {} | No Eyes Frames: {} | Start Time: {}", 
                 blink_counter, 
-                interval_start.elapsed().as_secs(),
                 presence_duration.as_secs_f32(),
                 eyes_present,
-                no_eyes_frame_count
+                no_eyes_frame_count,
+                interval_start_time
             );
 
-            // Add a small delay to prevent excessive CPU usage
             thread::sleep(Duration::from_millis(5));
         }
 

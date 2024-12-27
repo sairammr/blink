@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { BentoBox } from './components/BentoBox';
-import { CameraPreview } from './components/CameraPreview';
+// import { CameraPreview } from './components/CameraPreview';
 import { Settings } from './components/Settings';
 import { BlinkStats } from './types';
 import { invoke } from '@tauri-apps/api/core';
 
-export function App() {  // Changed to named export
+export function App() {
   const [isDark, setIsDark] = useState(false);
   const [stats, setStats] = useState<BlinkStats>({
     todayCount: 0,
@@ -34,12 +34,11 @@ export function App() {  // Changed to named export
 
   useEffect(() => {
     if (blinkData.length > 0) {
-      const todayCount = blinkData.reduce((acc, value) => acc + value.avg_value, 0);  // Total blinks for today
-      const twentyMinAvg = blinkData[blinkData.length - 1].avg_value;  // Last entry for 20 min average
+      const todayCount = blinkData.reduce((acc, value) => acc + value.avg_value, 0);
+      const twentyMinAvg = blinkData[blinkData.length - 1].avg_value;
 
       const lastThreeBlinks = blinkData.slice(-3);
-      const hourlyAvg = lastThreeBlinks.length > 0 ? lastThreeBlinks.reduce((acc, value) => acc + value.avg_value, 0) / lastThreeBlinks.length : 0;  // Average of the last 3 values
-
+      let hourlyAvg = lastThreeBlinks.length > 0 ? lastThreeBlinks.reduce((acc, value) => acc + value.avg_value, 0) / lastThreeBlinks.length : 0;
       setStats({
         todayCount,
         twentyMinAvg,
@@ -64,14 +63,15 @@ export function App() {  // Changed to named export
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors p-4">
       <div className="max-w-7xl mx-auto space-y-4">
         <BentoBox username="John Doe" stats={stats} />
-        <div className="md:col-span-2">
+        {/* Uncomment if you want to use CameraPreview */}
+        {/* <div className="md:col-span-2">
             <CameraPreview />
-          </div>
+        </div> */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <Settings 
               isDark={isDark}
-              onThemeToggle={() => setIsDark(!isDark)}
+              onThemeToggle={() => setIsDark(prev => !prev)} // Toggle theme
               onLogout={handleLogout}
             />
           </div>

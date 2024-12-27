@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import { Moon, Sun, LogOut, Settings as SettingsIcon } from 'lucide-react';
 
 interface SettingsProps {
@@ -21,7 +21,7 @@ export function Settings({ isDark, onThemeToggle, onLogout }: SettingsProps) {
         <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
           <span className="text-sm font-medium">Theme</span>
           <button
-            onClick={onThemeToggle}
+            onClick ={onThemeToggle}
             className="p-3 rounded-xl bg-white dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors shadow-md"
           >
             {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}

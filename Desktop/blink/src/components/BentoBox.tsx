@@ -1,7 +1,7 @@
-import React from 'react';
-import { LineChart, User, Clock, Timer } from 'lucide-react';
+// import React from 'react';
+import {  User, Clock } from 'lucide-react';
 import { BlinkStats } from '../types';
-import { BlinkGraph } from './BlinkGraph'; // Added import
+// import { BlinkGraph } from './BlinkGraph'; // Added import
 
 interface BentoBoxProps {
   username: string;
@@ -25,7 +25,7 @@ export function BentoBox({ username, stats }: BentoBoxProps) {
       </div>
 
       {/* Today's Blink Count */}
-      <div className="md:col-span-2 bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
+      {/* <div className="md:col-span-2 bg-gradient-to-br from-green-500 to-emerald-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
             <Timer className="w-6 h-6" />
@@ -35,10 +35,10 @@ export function BentoBox({ username, stats }: BentoBoxProps) {
             <p className="text-3xl font-bold">{stats.todayCount}</p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* 20 Min Average */}
-      <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
+      <div className="bg-gradient-to-br md:col-span-2 from-purple-500 to-purple-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
             <Clock className="w-6 h-6" />
@@ -51,7 +51,7 @@ export function BentoBox({ username, stats }: BentoBoxProps) {
       </div>
 
       {/* 1 Hour Average */}
-      <div className="bg-gradient-to-br from-orange-500 to-red-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
+      <div className="bg-gradient-to-br md:col-span-2 from-orange-500 to-red-600 p-6 rounded-2xl shadow-lg text-white transform hover:scale-[1.02] transition-all duration-300">
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
             <Clock className="w-6 h-6" />
@@ -64,7 +64,7 @@ export function BentoBox({ username, stats }: BentoBoxProps) {
       </div>
 
       {/* Graph Box */}
-      <div className="md:col-span-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
+      {/* <div className="md:col-span-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
@@ -79,7 +79,7 @@ export function BentoBox({ username, stats }: BentoBoxProps) {
           </select>
         </div>
         <BlinkGraph />
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import  { useRef, useState, useEffect } from 'react';
 import { X, Maximize2 } from 'lucide-react';
 
 export function CameraPreview() {

@@ -138,14 +138,14 @@ pub fn blink_detection(db_handler: Arc<DBHandler>) -> Result<(), String> {
             }
 
             prev_eyes_count = current_eyes;
-            // println!(
-            //     "Blinks: {} | Presence: {:.1}s | Eyes Present: {} | No Eyes Frames: {} | Start Time: {}", 
-            //     blink_counter, 
-            //     presence_duration.as_secs_f32(),
-            //     eyes_present,
-            //     no_eyes_frame_count,
-            //     interval_start_time
-            // );
+             println!(
+                 "Blinks: {} | Presence: {:.1}s | Eyes Present: {} | No Eyes Frames: {} | Start Time: {}", 
+                 blink_counter, 
+                 presence_duration.as_secs_f32(),
+                 eyes_present,
+                 no_eyes_frame_count,
+                 interval_start_time
+             );
 
             thread::sleep(Duration::from_millis(5));
         }

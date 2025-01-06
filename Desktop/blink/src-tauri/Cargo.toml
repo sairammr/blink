@@ -16,11 +16,15 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+cc = "1.0"
+
+[build]
+rustflags = ["-C", "link-args=-Wl,-rpath,@loader_path/../Frameworks"]
 
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
-opencv = "0.93.5" 
+opencv = { version = "0.93.5", features = ["clang-runtime"] }
 chrono = "0.4"
 rusqlite = { version = "0.29.0"}
 r2d2 = "0.8"

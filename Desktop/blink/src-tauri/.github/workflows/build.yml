@@ -1,0 +1,39 @@
+name: Windows Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+      - name: Install OpenCV
+        run: |
+          choco install -y opencv
+          echo OpenCV installed with Chocolatey.
+
+      - name: Set OpenCV environment variables
+        run: |
+          setx OPENCV_DIR "C:\\tools\\opencv"
+          setx PATH "%PATH%;C:\\tools\\opencv\\build\\x64\\vc15\\bin"
+
+      - name: Build application
+        run: cargo build --release
+
+      - name: Verify static linking (optional)
+        run: |
+          dumpbin /dependents target\\release\\your_project.exe
+          echo Verify no dynamic OpenCV dependency exists.

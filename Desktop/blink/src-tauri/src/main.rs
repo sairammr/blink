@@ -4,7 +4,7 @@ mod db;
 use db::init::{DBHandler, IntervalEntry};
 use detection::blink_detection::blink_detection;
 use serde::{Serialize, Deserialize};
-
+use std::env;
 #[derive(Serialize, Deserialize)]
 struct AvgEntryResponse {
     start_time: String,
@@ -14,6 +14,14 @@ struct AvgEntryResponse {
 
 
 fn main() {
+    env::set_var(
+        "PATH",
+        format!(
+            "C:/tools/opencv/build/x64/vc16/bin;{}",
+            env::var("PATH").unwrap_or_default()
+        ),
+    );
+
     let db_path = "../../../../agarwal.sqlite"; // Path to SQLite database file
     let db_handler = Arc::new(DBHandler::new(db_path));
 

@@ -20,7 +20,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
-opencv = "0.93.5" 
+opencv = { version = "0.94.1", features = [] }
 chrono = "0.4"
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 r2d2 = "0.8"

@@ -7,7 +7,8 @@ use opencv::{
     Result,
     videoio
 };
-use chrono::{NaiveDateTime, Utc, DateTime};
+use opencv::core::AlgorithmHint;
+use chrono::{Utc};
 use std::{sync::mpsc, thread, time::{Instant, Duration}};
 use std::sync::Arc;
 use crate::IntervalEntry;
@@ -25,7 +26,7 @@ impl FaceDetector {
 
     fn detect_eyes(&mut self, frame: &Mat) -> Result<Vector<core::Rect>> {
         let mut gray = Mat::default();
-        imgproc::cvt_color(frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0)?;
+        imgproc::cvt_color(frame, &mut gray, imgproc::COLOR_BGR2GRAY, 0,opencv::core::AlgorithmHint::ALGO_HINT_DEFAULT)?;
 
         let mut eyes = Vector::new();
         self.eye_cascade.detect_multi_scale(

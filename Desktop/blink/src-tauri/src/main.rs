@@ -1,9 +1,8 @@
 use std::{sync::{Arc, atomic::{AtomicBool, Ordering}}};
 mod detection;
 mod db;
-use db::init::{DBHandler, IntervalEntry, LogEntry, AvgEntry};
+use db::init::{DBHandler, IntervalEntry};
 use detection::blink_detection::blink_detection;
-use tauri::async_runtime;
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]

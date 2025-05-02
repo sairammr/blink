@@ -9,6 +9,7 @@ from tkinter import ttk, messagebox
 import datetime
 import json
 import os
+import sqlite3
 from PIL import Image, ImageTk
 
 class EyeTrackingApp:
@@ -52,6 +53,25 @@ class EyeTrackingApp:
         
         # Add notification control variable
         self.notifications_enabled = tk.BooleanVar(value=True)
+
+        # Initialize per-minute blink counting
+        self.blinks_per_minute = {}
+        self.last_minute = None
+        self.last_blink_counter = 0  # Track last blink_counter value for per-minute logic
+        self.last_blink_counter_for_db = 0  # Track last value written to DB
+        self.last_elapsed_time_for_db = 0  # Track last elapsed time for per-minute blink rate
+
+        # Setup SQLite database path for blink counts (connection will be created in tracking_loop)
+        self.db_path = os.path.join(os.path.dirname(__file__), 'blinks_per_minute.db')
+        # Ensure table exists (create using a temp connection)
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''CREATE TABLE IF NOT EXISTS blink_counts (
+                minute TEXT PRIMARY KEY,
+                blink_count INTEGER,
+                blink_rate REAL
+            )''')
+            conn.commit()
         
         # Initialize UI label references to None before setup
         self.normal_value_label = None
@@ -473,6 +493,13 @@ class EyeTrackingApp:
             LimgPlot = self.plot_y.update(LratioAvg, self.color)
             RimgPlot = self.plot_y.update(RratioAvg, self.color)
             
+            # Update per-minute blink count
+            now = datetime.datetime.now()
+            current_minute = now.strftime('%Y-%m-%d %H:%M')
+            if current_minute not in self.blinks_per_minute:
+                self.blinks_per_minute[current_minute] = 0
+            self.blinks_per_minute[current_minute] += 1
+            
             return img, LimgPlot, RimgPlot
         else:
             # Empty plots
@@ -480,6 +507,9 @@ class EyeTrackingApp:
             return img, imgPlot, imgPlot
             
     def tracking_loop(self):
+        # Create a SQLite connection and cursor in this thread
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
         while self.running:
             if not self.paused:
                 success, img = self.cap.read()
@@ -488,7 +518,26 @@ class EyeTrackingApp:
                     
                 img, faces = self.detector.findFaceMesh(img, draw=False)
                 img, left_plot, right_plot = self.process_eye_tracking(img, faces)
-                
+
+                # --- Per-minute DB write logic ---
+                now = datetime.datetime.now()
+                current_minute = now.strftime('%Y-%m-%d %H:%M')
+                if self.last_minute and self.last_minute != current_minute:
+                    # Compute blinks and blink rate in the previous minute (align with GUI)
+                    blinks_this_minute = self.blink_counter - self.last_blink_counter_for_db
+                    elapsed_time = int(time.time() - self.start_time)
+                    seconds_this_minute = elapsed_time - self.last_elapsed_time_for_db
+                    if seconds_this_minute > 0:
+                        blink_rate_minute = blinks_this_minute / (seconds_this_minute / 60)
+                    else:
+                        blink_rate_minute = 0.0
+                    cursor.execute('INSERT OR REPLACE INTO blink_counts (minute, blink_count, blink_rate) VALUES (?, ?, ?)', (self.last_minute, blinks_this_minute, blink_rate_minute))
+                    conn.commit()
+                    self.last_blink_counter_for_db = self.blink_counter
+                    self.last_elapsed_time_for_db = elapsed_time
+                self.last_minute = current_minute
+                # --- End per-minute DB write logic ---
+
                 # Update video display
                 video_img = cv2.resize(img, (640, 480))
                 video_img = cv2.cvtColor(video_img, cv2.COLOR_BGR2RGB)
@@ -564,6 +613,23 @@ class EyeTrackingApp:
     def on_closing(self):
         self.running = False
         self.cap.release()
+        # Write any remaining per-minute blink counts to DB
+        # Flush remaining blink data to DB using a new connection
+        # Write the last partial minute if needed
+        now = datetime.datetime.now()
+        current_minute = now.strftime('%Y-%m-%d %H:%M')
+        if self.last_minute:
+            blinks_this_minute = self.blink_counter - self.last_blink_counter_for_db
+            elapsed_time = int(time.time() - self.start_time)
+            seconds_this_minute = elapsed_time - self.last_elapsed_time_for_db
+            if seconds_this_minute > 0:
+                blink_rate_minute = blinks_this_minute / (seconds_this_minute / 60)
+            else:
+                blink_rate_minute = 0.0
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute('INSERT OR REPLACE INTO blink_counts (minute, blink_count, blink_rate) VALUES (?, ?, ?)', (self.last_minute, blinks_this_minute, blink_rate_minute))
+                conn.commit()
         self.root.destroy()
 
 if __name__ == "__main__":

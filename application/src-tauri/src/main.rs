@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    blink_by_licet_lib::run()
+    cse_licet_blink_lib::run()
 }

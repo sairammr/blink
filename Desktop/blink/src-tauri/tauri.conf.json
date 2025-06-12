@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "blink",
+  "productName": "blink-by-licet",
   "version": "0.1.0",
-  "identifier": "com.agarwal.blink",
+  "identifier": "com.licet-cse.blink",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "blink",
+        "title": "blink-by-licet",
         "width": 800,
         "height": 600
       }
@@ -30,9 +30,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "resources": [
-      "src/detection/models/haarcascade_eye.xml"
     ]
   }
 }

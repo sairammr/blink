@@ -8,10 +8,12 @@ import os
 import sqlite3
 from queue import Queue
 from flask import Flask, jsonify, request
-
+from flask_cors import CORS
+from datetime import datetime, timedelta
+import random
 app = Flask(__name__)
+cors = CORS(app)
 
-# Thread-safe SQLite manager
 class BlinkDBManager:
     def __init__(self, db_path='blink_data.db'):
         self.db_path = db_path
@@ -20,6 +22,22 @@ class BlinkDBManager:
         self._init_db()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
+    def insert_mock_data(self, count=50):
+        """
+        Inserts `count` number of mock blink entries between 30 and 20 minutes ago from current time.
+        """
+        now = datetime.now()
+        earliest = now - timedelta(minutes=30)
+        latest = now - timedelta(minutes=20)
+
+        for _ in range(count):
+            # Generate a timestamp between earliest and latest
+            delta_seconds = random.randint(0, int((latest - earliest).total_seconds()))
+            timestamp = earliest + timedelta(seconds=delta_seconds)
+            timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            blink_count = random.randint(1, 5)
+            self.insert_blink(timestamp_str, blink_count)
+            print(f"Inserted {blink_count} blinks at {timestamp_str}")
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -45,6 +63,56 @@ class BlinkDBManager:
 
     def insert_blink(self, timestamp: str, count: int):
         self.queue.put((timestamp, count))
+
+    def get_today_data(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data 
+                         WHERE timestamp LIKE ?''', (f"{today}%",))
+            rows = c.fetchall()
+
+        total_blinks = sum([r[1] for r in rows])
+        average = total_blinks / len(rows) if rows else 0
+
+        return {
+            "total_blinks": total_blinks,
+            "average_blinks": round(average, 1),
+            "data": [{
+                "time": datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
+                "blinks": count
+            } for ts, count in sorted(rows)]
+        }
+
+    def get_last_20_minutes_data(self):
+        now = datetime.now()
+        start_time = now - timedelta(minutes=60)
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data 
+                         WHERE timestamp BETWEEN ? AND ?''',
+                      (start_time.strftime("%Y-%m-%d %H:%M:%S"), now.strftime("%Y-%m-%d %H:%M:%S")))
+            rows = c.fetchall()
+
+        return [{
+            "time": datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
+            "blinks": count
+        } for ts, count in sorted(rows)]
+
+    def get_stats(self):
+        today_data = self.get_today_data()
+        last_20_data = self.get_last_20_minutes_data()
+        last_20_avg = round(sum([x["blinks"] for x in last_20_data]) / len(last_20_data), 1) if last_20_data else 0
+
+        percent_change = ((last_20_avg - today_data["average_blinks"]) / today_data["average_blinks"] * 100) \
+            if today_data["average_blinks"] else 0
+
+        return {
+            "averageBlinks": today_data["average_blinks"],
+            "last20Minutes": last_20_avg,
+            "totalToday": today_data["total_blinks"],
+            "percentageAbove": round(percent_change, 1)
+        }
 
     def stop(self):
         self.running = False
@@ -245,7 +313,7 @@ class EyeTracker:
 # Create global tracker and DB manager
 tracker = EyeTracker()
 db_manager = BlinkDBManager()
-
+db_manager.insert_mock_data()
 # Flask endpoints
 @app.route('/start', methods=['POST'])
 def start_tracking():
@@ -309,5 +377,16 @@ def shutdown():
     db_manager.stop()
     return jsonify({"status": "Shutdown complete"}), 200
 
+@app.route('/api/blink-rate')
+def blink_rate():
+    return jsonify(db_manager.get_today_data()["data"])
+
+@app.route('/api/recent-activity')
+def recent_activity():
+    return jsonify(db_manager.get_last_20_minutes_data())
+
+@app.route('/api/stats')
+def blink_stats():
+    return jsonify(db_manager.get_stats())
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)

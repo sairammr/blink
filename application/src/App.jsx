@@ -2,48 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { Calendar, Eye, HelpCircle, TrendingUp } from 'lucide-react';
 
-// Mock data for the blink rate chart
-const generateBlinkRateData = () => {
-  const data = [];
-  const times = [
-    '00:30', '01:25', '02:20', '03:20', '04:20', '05:20', '06:20', '07:20', '08:20', '09:20',
-    '10:15', '11:05', '11:55', '12:50', '13:45', '14:40', '15:35', '16:30', '17:25', '18:20',
-    '19:10', '20:05', '21:00', '21:55', '22:55', '23:55'
-  ];
-  
-  times.forEach(time => {
-    data.push({
-      time,
-      blinks: Math.floor(Math.random() * 14) + 7 // Random blinks between 7-21
-    });
-  });
-  
-  return data;
-};
-
-// Mock data for recent activity
-const generateRecentActivity = () => {
-  const activities = [];
-  const baseTime = new Date();
-  baseTime.setHours(23, 55, 0, 0);
-  
-  const times = [
-    '22:20', '22:25', '22:30', '22:35', '22:40', '22:45', '22:50', '22:55', '23:00', '23:05',
-    '23:10', '23:15', '23:20', '23:25', '23:30', '23:35', '23:40', '23:45', '23:50', '23:55'
-  ];
-  
-  const blinkCounts = [20, 21, 22, 24, 23, 25, 18, 20, 26, 20, 24, 20, 19, 22, 19, 16, 24, 21, 21, 20];
-  
-  times.forEach((time, index) => {
-    activities.push({
-      time,
-      blinks: blinkCounts[index] || Math.floor(Math.random() * 10) + 16
-    });
-  });
-  
-  return activities;
-};
-
 const BlinkAnalyticsDashboard = () => {
   const [blinkRateData, setBlinkRateData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -54,25 +12,24 @@ const BlinkAnalyticsDashboard = () => {
     percentageAbove: 26.2
   });
 
-  // Mock function to simulate real-time updates
-  const updateStats = () => {
-    setCurrentStats(prev => ({
-      ...prev,
-      last20Minutes: prev.last20Minutes + (Math.random() - 0.5) * 2,
-      totalToday: prev.totalToday + Math.floor(Math.random() * 10),
-      percentageAbove: prev.percentageAbove + (Math.random() - 0.5) * 5
-    }));
-  };
-
   useEffect(() => {
-    setBlinkRateData(generateBlinkRateData());
-    setRecentActivity(generateRecentActivity());
-    
-    // Update stats every 30 seconds
-    const interval = setInterval(updateStats, 30000);
-    
+    const fetchData = async () => {
+      const [rateRes, activityRes, statsRes] = await Promise.all([
+        fetch('http://127.0.0.1:5000/api/blink-rate'),
+        fetch('http://127.0.0.1:5000/api/recent-activity'),
+        fetch('http://127.0.0.1:5000/api/stats')
+      ]);
+  
+      setBlinkRateData(await rateRes.json());
+      setRecentActivity(await activityRes.json());
+      setCurrentStats(await statsRes.json());
+    };
+  
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+  
 
   const styles = {
     container: {
@@ -369,11 +326,6 @@ const BlinkAnalyticsDashboard = () => {
           <div style={styles.chartCard}>
             <div style={styles.chartHeader}>
               <h2 style={styles.chartTitle}>Blink Rate Over Time</h2>
-              <div style={styles.chartTabs}>
-                <button style={{...styles.chartTab, ...styles.activeChartTab}}>Day</button>
-                <button style={{...styles.chartTab, ...styles.inactiveChartTab}}>Week</button>
-                <button style={{...styles.chartTab, ...styles.inactiveChartTab}}>Month</button>
-              </div>
             </div>
             <div style={styles.chartContainer}>
               <ResponsiveContainer width="100%" height="100%">

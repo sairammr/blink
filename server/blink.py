@@ -11,6 +11,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
+from config_manager import ConfigManager
+
 app = Flask(__name__)
 cors = CORS(app)
 
@@ -135,7 +137,7 @@ class EyeTracker:
         self.R_ratio_list = []
         self.blink_counter = 0
         self.counter = 0
-        self.threshold = 34
+        self.threshold = config_manager.get_threshold()
 
         self.cap = cv2.VideoCapture(0)
         self.detector = FaceMeshDetector(maxFaces=4)
@@ -311,9 +313,11 @@ class EyeTracker:
         }
 
 # Create global tracker and DB manager
+config_manager = ConfigManager()
 tracker = EyeTracker()
 db_manager = BlinkDBManager()
 db_manager.insert_mock_data()
+
 # Flask endpoints
 @app.route('/start', methods=['POST'])
 def start_tracking():
@@ -351,11 +355,9 @@ def save_session():
 def update_config():
     data = request.json
     if 'threshold' in data:
-        tracker.threshold = max(20, min(50, int(data['threshold'])))
-    if 'normal_rate' in data:
-        tracker.NORMAL_BLINK_RATE = max(1, int(data['normal_rate']))
-    if 'low_rate' in data:
-        tracker.LOW_BLINK_RATE = max(1, int(data['low_rate']))
+        new_threshold = max(20, min(50, int(data['threshold'])))
+        tracker.threshold = new_threshold
+        config_manager.set_threshold(new_threshold)
 
     return jsonify({
         "threshold": tracker.threshold,
@@ -388,5 +390,6 @@ def recent_activity():
 @app.route('/api/stats')
 def blink_stats():
     return jsonify(db_manager.get_stats())
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)

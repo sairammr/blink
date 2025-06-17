@@ -1,6 +1,184 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
-import { Calendar, Eye, HelpCircle, TrendingUp } from 'lucide-react';
+import { Calendar, Eye, HelpCircle, TrendingUp, Settings, Power } from 'lucide-react';
+
+const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, sensitivity }) => {
+  const [tempSensitivity, setTempSensitivity] = useState(sensitivity);
+
+  useEffect(() => {
+    setTempSensitivity(sensitivity);
+  }, [sensitivity]);
+
+  if (!isOpen) return null;
+
+  const styles = {
+    overlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+    },
+    modal: {
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      padding: '24px',
+      width: '400px',
+      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: '24px',
+    },
+    title: {
+      fontSize: '20px',
+      fontWeight: '600',
+      margin: 0,
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      padding: '4px',
+    },
+    content: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '20px',
+    },
+    buttonGroup: {
+      display: 'flex',
+      gap: '12px',
+    },
+    button: {
+      flex: 1,
+      padding: '12px',
+      borderRadius: '6px',
+      border: 'none',
+      cursor: 'pointer',
+      fontWeight: '500',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+    },
+    startButton: {
+      backgroundColor: '#10B981',
+      color: 'white',
+    },
+    stopButton: {
+      backgroundColor: '#EF4444',
+      color: 'white',
+    },
+    disabledButton: {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
+    sliderContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+    },
+    sliderLabel: {
+      fontSize: '14px',
+      color: '#6B7280',
+    },
+    slider: {
+      width: '100%',
+    },
+    confirmButton: {
+      backgroundColor: '#3B82F6',
+      color: 'white',
+      padding: '8px 16px',
+      borderRadius: '6px',
+      border: 'none',
+      cursor: 'pointer',
+      fontWeight: '500',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      marginTop: '8px',
+    },
+    confirmButtonDisabled: {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+    },
+  };
+
+  const handleConfirmSensitivity = () => {
+    onSensitivityChange(tempSensitivity);
+  };
+
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={styles.header}>
+          <h2 style={styles.title}>Settings</h2>
+          <button style={styles.closeButton} onClick={onClose}>
+            <Settings size={20} />
+          </button>
+        </div>
+        <div style={styles.content}>
+          <div style={styles.buttonGroup}>
+            <button
+              style={{
+                ...styles.button,
+                ...styles.startButton,
+                ...(isTracking ? styles.disabledButton : {}),
+              }}
+              onClick={onStart}
+              disabled={isTracking}
+            >
+              <Power size={16} />
+              Start Tracking
+            </button>
+            <button
+              style={{
+                ...styles.button,
+                ...styles.stopButton,
+                ...(!isTracking ? styles.disabledButton : {}),
+              }}
+              onClick={onStop}
+              disabled={!isTracking}
+            >
+              <Power size={16} />
+              Stop Tracking
+            </button>
+          </div>
+          <div style={styles.sliderContainer}>
+            <label style={styles.sliderLabel}>Sensitivity: {tempSensitivity}</label>
+            <input
+              type="range"
+              min="20"
+              max="50"
+              value={tempSensitivity}
+              onChange={(e) => setTempSensitivity(parseInt(e.target.value))}
+              style={styles.slider}
+            />
+            <button
+              style={{
+                ...styles.confirmButton,
+                ...(tempSensitivity === sensitivity ? styles.confirmButtonDisabled : {}),
+              }}
+              onClick={handleConfirmSensitivity}
+              disabled={tempSensitivity === sensitivity}
+            >
+              Confirm Sensitivity
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const BlinkAnalyticsDashboard = () => {
   const [blinkRateData, setBlinkRateData] = useState([]);
@@ -11,25 +189,75 @@ const BlinkAnalyticsDashboard = () => {
     totalToday: 24580,
     percentageAbove: 26.2
   });
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTracking, setIsTracking] = useState(false);
+  const [sensitivity, setSensitivity] = useState(34);
+  const [trackingStatus, setTrackingStatus] = useState('Not Started');
 
   useEffect(() => {
     const fetchData = async () => {
-      const [rateRes, activityRes, statsRes] = await Promise.all([
-        fetch('http://127.0.0.1:5000/api/blink-rate'),
-        fetch('http://127.0.0.1:5000/api/recent-activity'),
-        fetch('http://127.0.0.1:5000/api/stats')
-      ]);
-  
-      setBlinkRateData(await rateRes.json());
-      setRecentActivity(await activityRes.json());
-      setCurrentStats(await statsRes.json());
+      try {
+        const [rateRes, activityRes, statsRes, statusRes] = await Promise.all([
+          fetch('http://127.0.0.1:5000/api/blink-rate'),
+          fetch('http://127.0.0.1:5000/api/recent-activity'),
+          fetch('http://127.0.0.1:5000/api/stats'),
+          fetch('http://127.0.0.1:5000/status')
+        ]);
+    
+        setBlinkRateData(await rateRes.json());
+        setRecentActivity(await activityRes.json());
+        setCurrentStats(await statsRes.json());
+        const statusData = await statusRes.json();
+        setTrackingStatus(statusData.status);
+        setIsTracking(statusData.running);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
     };
   
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
-  
+
+  const handleStartTracking = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/start', { method: 'POST' });
+      if (response.ok) {
+        setIsTracking(true);
+      }
+    } catch (error) {
+      console.error('Error starting tracking:', error);
+    }
+  };
+
+  const handleStopTracking = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/stop', { method: 'POST' });
+      if (response.ok) {
+        setIsTracking(false);
+      }
+    } catch (error) {
+      console.error('Error stopping tracking:', error);
+    }
+  };
+
+  const handleSensitivityChange = async (value) => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ threshold: parseInt(value) }),
+      });
+      if (response.ok) {
+        setSensitivity(parseInt(value));
+      }
+    } catch (error) {
+      console.error('Error updating sensitivity:', error);
+    }
+  };
 
   const styles = {
     container: {
@@ -68,11 +296,45 @@ const BlinkAnalyticsDashboard = () => {
       color: '#111827'
     },
     headerRight: {
-      fontSize: '14px',
-      color: '#6b7280',
       display: 'flex',
       alignItems: 'center',
-      gap: '8px'
+      gap: '16px'
+    },
+    statusIndicator: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      color: '#6b7280'
+    },
+    statusDot: {
+      width: '8px',
+      height: '8px',
+      borderRadius: '50%',
+      transition: 'all 0.3s ease'
+    },
+    statusDotActive: {
+      backgroundColor: '#10B981',
+      boxShadow: '0 0 8px #10B981'
+    },
+    statusDotInactive: {
+      backgroundColor: '#EF4444',
+      boxShadow: '0 0 8px #EF4444'
+    },
+    settingsButton: {
+      background: 'none',
+      border: 'none',
+      cursor: 'pointer',
+      padding: '8px',
+      borderRadius: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#6b7280',
+      transition: 'all 0.2s ease'
+    },
+    settingsButtonHover: {
+      backgroundColor: '#f3f4f6'
     },
     main: {
       padding: '24px'
@@ -267,10 +529,35 @@ const BlinkAnalyticsDashboard = () => {
             <span style={styles.logoText}>Blink Analytics</span>
           </div>
           <div style={styles.headerRight}>
-            Data Analyst Dashboard
+            <div style={styles.statusIndicator}>
+              <div 
+                style={{
+                  ...styles.statusDot,
+                  ...(isTracking ? styles.statusDotActive : styles.statusDotInactive)
+                }} 
+              />
+              <span>{trackingStatus}</span>
+            </div>
+            <button 
+              style={styles.settingsButton}
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              <Settings size={20} />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onStart={handleStartTracking}
+        onStop={handleStopTracking}
+        onSensitivityChange={handleSensitivityChange}
+        isTracking={isTracking}
+        sensitivity={sensitivity}
+      />
 
       {/* Main Content */}
       <div style={styles.main}>

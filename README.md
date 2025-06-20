@@ -50,6 +50,9 @@
 - **Rust toolchain** (for Tauri)
 - **Webcam**
 
+
+### For LINUX
+
 ### 1. Backend Setup
 ```bash
 cd server
@@ -66,6 +69,34 @@ cd application
 npm install
 npm run tauri dev
 ```
+This will launch the Tauri desktop app.
+
+### For WINDOWS
+
+### 1. Backend Setup
+```bash
+cd server
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python blink.py
+```
+This will start the Flask server on `localhost:5000`.
+
+### 2. Frontend Setup
+```bash
+cd application
+npm install
+npm install @tauri-apps/cli
+npm run tauri dev
+```
+### If needed
+```bash
+powershell -c "irm bun.sh/install.ps1 | iex"
+Invoke-WebRequest https://win.rustup.rs -UseBasicParsing -OutFile rustup-init.exe
+.\rustup-init.exe
+```
+
 This will launch the Tauri desktop app.
 
 ---
@@ -93,6 +124,12 @@ This will launch the Tauri desktop app.
 - `GET /api/blink-rate` – Get today's blink rate data
 - `GET /api/recent-activity` – Get last 20 minutes activity
 - `GET /api/stats` – Get blink statistics
+- `POST /test-alert` – To trigger an alert 
+- `POST /test-alert` (To trigger a custom alert )
+  ```json
+  {
+    "message": "Your custom test message"
+  } 
 
 ---
 

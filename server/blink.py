@@ -12,6 +12,8 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import random
 from config_manager import ConfigManager
+import tkinter as tk
+from threading import Thread
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -236,6 +238,7 @@ class EyeTracker:
         if blink_rate < self.LOW_BLINK_RATE:
             self.last_alert = f"Warning: Very low blink rate detected ({blink_rate:.1f} bpm)! Please take a break."
             self.last_alert_time = current_time
+            show_critical_alert(self.last_alert)
         elif blink_rate < self.NORMAL_BLINK_RATE:
             self.last_alert = f"Your blink rate ({blink_rate:.1f} bpm) is below average. Try the 20-20-20 rule."
             self.last_alert_time = current_time
@@ -311,6 +314,21 @@ class EyeTracker:
             "last_alert": self.last_alert,
             "threshold": self.threshold
         }
+
+# Function to show a topmost Tkinter alert window
+def show_critical_alert(message):
+    def _show():
+        root = tk.Tk()
+        root.title("CRITICAL ALERT")
+        root.attributes('-topmost', True)
+        root.geometry('400x150')
+        root.resizable(False, False)
+        label = tk.Label(root, text=message, font=("Arial", 14), fg="red", wraplength=380)
+        label.pack(pady=30)
+        btn = tk.Button(root, text="OK", command=root.destroy, font=("Arial", 12, "bold"))
+        btn.pack(pady=10)
+        root.mainloop()
+    Thread(target=_show, daemon=True).start()
 
 # Create global tracker and DB manager
 config_manager = ConfigManager()
@@ -390,6 +408,13 @@ def recent_activity():
 @app.route('/api/stats')
 def blink_stats():
     return jsonify(db_manager.get_stats())
+
+#@app.route('/api/alert', methods=['POST'])
+@app.route('/test-alert', methods=['POST'])
+def test_alert():
+    message = request.json.get("message", "This is a test critical alert!")
+    show_critical_alert(message)
+    return jsonify({"status": "Test alert triggered"}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)

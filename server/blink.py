@@ -129,7 +129,7 @@ class EyeTracker:
         self.paused = False
         self.start_time = None
         self.last_alert_time = 0
-        self.MIN_ALERT_INTERVAL = 5
+        self.MIN_ALERT_INTERVAL = 1200
 
         self.NORMAL_BLINK_RATE = 12
         self.LOW_BLINK_RATE = 8

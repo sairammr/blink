@@ -336,12 +336,18 @@ tracker = EyeTracker()
 db_manager = BlinkDBManager()
 db_manager.insert_mock_data()
 
+# Start tracking by default
+tracker.start_tracking()
+
 # Flask endpoints
 @app.route('/start', methods=['POST'])
 def start_tracking():
+    # Tracking is already started by default, but keep endpoint for compatibility
+    if tracker.running:
+        return jsonify({"status": "Tracking already running"}), 200
     if tracker.start_tracking():
         return jsonify({"status": "Tracking started"}), 200
-    return jsonify({"error": "Tracking already running"}), 400
+    return jsonify({"error": "Could not start tracking"}), 400
 
 @app.route('/stop', methods=['POST'])
 def stop_tracking():

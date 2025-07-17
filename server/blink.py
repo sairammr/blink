@@ -68,6 +68,16 @@ class BlinkDBManager:
     def insert_blink(self, timestamp: str, count: int):
         self.queue.put((timestamp, count))
 
+    def _parse_timestamp(self, ts):
+        """Helper method to parse timestamp with or without seconds"""
+        try:
+            return datetime.strptime(ts, "%Y-%m-%d %H:%M")
+        except ValueError:
+            try:
+                return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return None
+
     def get_today_data(self):
         today = datetime.now().strftime("%Y-%m-%d")
         with sqlite3.connect(self.db_path) as conn:
@@ -76,16 +86,24 @@ class BlinkDBManager:
                          WHERE timestamp LIKE ?''', (f"{today}%",))
             rows = c.fetchall()
 
-        total_blinks = sum([r[1] for r in rows])
-        average = total_blinks / len(rows) if rows else 0
+        # Filter out any invalid timestamps and sort by time
+        valid_rows = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt:
+                valid_rows.append((dt, count))
+        
+        valid_rows.sort()
+        total_blinks = sum(count for _, count in valid_rows)
+        average = total_blinks / len(valid_rows) if valid_rows else 0
 
         return {
             "total_blinks": total_blinks,
             "average_blinks": round(average, 1),
             "data": [{
-                "time": datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
+                "time": dt.strftime("%H:%M"),
                 "blinks": count
-            } for ts, count in sorted(rows)]
+            } for dt, count in valid_rows]
         }
 
     def get_last_20_minutes_data(self):
@@ -93,15 +111,28 @@ class BlinkDBManager:
         start_time = now - timedelta(minutes=60)
         with sqlite3.connect(self.db_path) as conn:
             c = conn.cursor()
+            # Get all recent data and filter in Python to handle both timestamp formats
             c.execute('''SELECT timestamp, blink_count FROM blink_data 
-                         WHERE timestamp BETWEEN ? AND ?''',
-                      (start_time.strftime("%Y-%m-%d %H:%M:%S"), now.strftime("%Y-%m-%d %H:%M:%S")))
+                         WHERE timestamp >= ?''',
+                     (start_time.strftime("%Y-%m-%d %H:%M"),))
             rows = c.fetchall()
 
+        # Process and filter rows
+        result = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt and dt >= start_time:
+                result.append({
+                    'time': dt,
+                    'blinks': count
+                })
+        
+        # Sort by time and format the output
+        result.sort(key=lambda x: x['time'])
         return [{
-            "time": datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").strftime("%H:%M"),
-            "blinks": count
-        } for ts, count in sorted(rows)]
+            'time': item['time'].strftime('%H:%M'),
+            'blinks': item['blinks']
+        } for item in result]
 
     def get_stats(self):
         today_data = self.get_today_data()
@@ -211,7 +242,7 @@ class EyeTracker:
             self.elapsed_time = current_time - self.start_time if self.start_time else 0
 
             # Store per-minute blink data
-            current_minute = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            current_minute = datetime.now().strftime('%Y-%m-%d %H:%M')
             if self.last_minute is None:
                 self.last_minute = current_minute
             elif current_minute != self.last_minute:
@@ -417,4 +448,5 @@ def test_alert():
     return jsonify({"status": "Test alert triggered"}), 200
 
 if __name__ == '__main__':
+    tracker.start_tracking()
     app.run(host='0.0.0.0', port=5000, threaded=True)

@@ -608,7 +608,7 @@ const BlinkAnalyticsDashboard = () => {
           </div>
         </div>
         {/* Stats Cards */}
-        <div style={{ ...styles.statsGrid, gridTemplateColumns: 'repeat(6, 1fr)' }}>
+        <div style={{ ...styles.statsGrid, gridTemplateColumns: 'repeat(5, 1fr)' }}>
           {/* Last Entry Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
@@ -621,16 +621,6 @@ const BlinkAnalyticsDashboard = () => {
             <p style={styles.statsSubtext}>
               {lastEntry.timestamp ? `at ${lastEntry.timestamp}` : 'No data'}
             </p>
-          </div>
-          {/* Last Minute Average Tile */}
-          <div style={styles.statsCard}>
-            <div style={styles.statsHeader}>
-              <h3 style={styles.statsTitle}>Last Minute Count</h3>
-              <HelpCircle size={16} color="#d1d5db" />
-            </div>
-            <div style={styles.statsValue}>
-              {lastMinuteAvg.average.toFixed(1)} blinks
-            </div>
           </div>
           {/* 10-Minute Average Tile */}
           <div style={styles.statsCard}>

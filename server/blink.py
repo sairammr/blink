@@ -20,6 +20,42 @@ import threading
 from threading import Thread
 from flask import request, jsonify
 import logging
+import asyncio
+import tkinter as tk
+from tkinter import ttk
+import ctypes
+import threading
+
+def show_critical_alert(message):
+    def alert_thread():
+        ctk.set_appearance_mode("dark")  # Dark background
+        ctk.set_default_color_theme("dark-blue")
+
+        root = ctk.CTk()
+        root.title("Critical Alert")
+        root.geometry("450x200")
+        root.attributes("-topmost", True)
+        root.attributes("-fullscreen", True)
+        root.configure(bg="black")
+        root.wm_attributes("-alpha", 0.92)
+
+        # Centered pop-up frame
+        frame = ctk.CTkFrame(root, corner_radius=20)
+        frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Message Label
+        label = ctk.CTkLabel(frame, text=message, font=("Segoe UI", 18, "bold"), text_color="white", wraplength=400)
+        label.pack(padx=30, pady=25)
+
+        # Acknowledge Button
+        button = ctk.CTkButton(frame, text="Acknowledge", fg_color="#d9534f", hover_color="#c9302c",
+                               font=("Segoe UI", 14, "bold"), corner_radius=10,
+                               command=root.destroy)
+        button.pack(pady=(0, 20))
+
+        root.mainloop()
+
+    threading.Thread(target=alert_thread, daemon=True).start()
 
 
 app = Flask(__name__)
@@ -57,6 +93,8 @@ class BlinkDBManager:
                 continue
 
     def insert_blink(self, timestamp: str, count: int):
+        if count <7:
+            show_critical_alert(f"Blink count is too low: {count}")
         self.queue.put((timestamp, count))
 
     def _parse_timestamp(self, ts):
@@ -361,7 +399,6 @@ class EyeTracker:
         if blink_rate < self.LOW_BLINK_RATE:
             self.last_alert = f"Warning: Very low blink rate detected ({blink_rate:.1f} bpm)! Please take a break."
             self.last_alert_time = current_time
-            show_critical_alert(self.last_alert)
         elif blink_rate < self.NORMAL_BLINK_RATE:
             self.last_alert = f"Your blink rate ({blink_rate:.1f} bpm) is below average. Try the 20-20-20 rule."
             self.last_alert_time = current_time
@@ -437,45 +474,6 @@ class EyeTracker:
             "last_alert": self.last_alert,
             "threshold": self.threshold
         }
-
-# Function to show a topmost Tkinter alert window
-import tkinter as tk
-from tkinter import ttk
-import ctypes
-import threading
-
-def show_critical_alert(message):
-    def alert_thread():
-        ctk.set_appearance_mode("dark")  # Dark background
-        ctk.set_default_color_theme("dark-blue")
-
-        root = ctk.CTk()
-        root.title("Critical Alert")
-        root.geometry("450x200")
-        root.attributes("-topmost", True)
-        root.attributes("-fullscreen", True)
-        root.configure(bg="black")
-        root.wm_attributes("-alpha", 0.92)
-
-        # Centered pop-up frame
-        frame = ctk.CTkFrame(root, corner_radius=20)
-        frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        # Message Label
-        label = ctk.CTkLabel(frame, text=message, font=("Segoe UI", 18, "bold"), text_color="white", wraplength=400)
-        label.pack(padx=30, pady=25)
-
-        # Acknowledge Button
-        button = ctk.CTkButton(frame, text="Acknowledge", fg_color="#d9534f", hover_color="#c9302c",
-                               font=("Segoe UI", 14, "bold"), corner_radius=10,
-                               command=root.destroy)
-        button.pack(pady=(0, 20))
-
-        root.mainloop()
-
-    threading.Thread(target=alert_thread, daemon=True).start()
-
-
 
 # Create global tracker and DB manager
 config_manager = ConfigManager()

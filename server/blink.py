@@ -103,7 +103,7 @@ class BlinkDBManager:
         valid_rows.sort()
         total_blinks = sum(count for _, count in valid_rows)
         average = total_blinks / len(valid_rows) if valid_rows else 0
-
+        valid_rows = valid_rows[-20:]
         return {
             "total_blinks": total_blinks,
             "average_blinks": round(average, 1),
@@ -136,6 +136,7 @@ class BlinkDBManager:
         
         # Sort by time and format the output
         result.sort(key=lambda x: x['time'])
+        result = result[-20:]
         return [{
             'time': item['time'].strftime('%H:%M'),
             'blinks': item['blinks']
@@ -155,6 +156,79 @@ class BlinkDBManager:
             "totalToday": today_data["total_blinks"],
             "percentageAbove": round(percent_change, 1)
         }
+
+    def get_last_10_minutes_average(self):
+        now = datetime.now()
+        start_time = now - timedelta(minutes=10)
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data 
+                         WHERE timestamp >= ?''',
+                     (start_time.strftime("%Y-%m-%d %H:%M"),))
+            rows = c.fetchall()
+        
+        # Process and filter rows
+        result = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt and dt >= start_time:
+                result.append(count)
+        
+        avg = round(sum(result) / len(result), 1) if result else 0
+        return {"average": avg, "count": len(result)}
+
+    def get_today_entries_and_average(self):
+        today = datetime.now().strftime("%Y-%m-%d")
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data 
+                         WHERE timestamp LIKE ?''', (f"{today}%",))
+            rows = c.fetchall()
+        valid_rows = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt:
+                valid_rows.append((dt, count))
+        valid_rows.sort()
+        total_blinks = sum(count for _, count in valid_rows)
+        average = total_blinks / len(valid_rows) if valid_rows else 0
+        return {
+            "entries": [{
+                "time": dt.strftime("%H:%M"),
+                "blinks": count
+            } for dt, count in valid_rows],
+            "average": round(average, 1),
+            "count": len(valid_rows)
+        }
+
+    def get_last_minute_average(self):
+        now = datetime.now()
+        start_time = now - timedelta(minutes=1)
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data 
+                         WHERE timestamp >= ?''',
+                     (start_time.strftime("%Y-%m-%d %H:%M"),))
+            rows = c.fetchall()
+        result = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt and dt >= start_time:
+                result.append(count)
+        avg = round(sum(result) / len(result), 1) if result else 0
+        return {"average": avg, "count": len(result)}
+
+    def get_last_entry(self):
+        """Fetch the most recently updated blink entry (by timestamp)."""
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data ORDER BY timestamp DESC LIMIT 1''')
+            row = c.fetchone()
+        if row:
+            ts, count = row
+            return {"timestamp": ts, "blink_count": count}
+        else:
+            return {"timestamp": None, "blink_count": None}
 
     def stop(self):
         self.running = False
@@ -470,6 +544,22 @@ def recent_activity():
 @app.route('/api/stats')
 def blink_stats():
     return jsonify(db_manager.get_stats())
+
+@app.route('/api/10min-average')
+def ten_min_average():
+    return jsonify(db_manager.get_last_10_minutes_average())
+
+@app.route('/api/today-entries')
+def today_entries():
+    return jsonify(db_manager.get_today_entries_and_average())
+
+@app.route('/api/last-minute-average')
+def last_minute_average():
+    return jsonify(db_manager.get_last_minute_average())
+
+@app.route('/api/last-entry')
+def last_entry():
+    return jsonify(db_manager.get_last_entry())
 
 #@app.route('/api/alert', methods=['POST'])
 @app.route('/test-alert', methods=['POST'])

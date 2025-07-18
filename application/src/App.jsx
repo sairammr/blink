@@ -189,32 +189,42 @@ const BlinkAnalyticsDashboard = () => {
     totalToday: 24580,
     percentageAbove: 26.2
   });
+  const [tenMinAvg, setTenMinAvg] = useState({ average: 0, count: 0 });
+  const [todayEntries, setTodayEntries] = useState({ average: 0, count: 0 });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [sensitivity, setSensitivity] = useState(34);
   const [trackingStatus, setTrackingStatus] = useState('Not Started');
+  const [lastMinuteAvg, setLastMinuteAvg] = useState({ average: 0, count: 0 });
+  const [lastEntry, setLastEntry] = useState({ timestamp: null, blink_count: null });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [rateRes, activityRes, statsRes, statusRes] = await Promise.all([
+        const [rateRes, activityRes, statsRes, statusRes, tenMinRes, todayEntriesRes, lastMinRes, lastEntryRes] = await Promise.all([
           fetch('http://127.0.0.1:5000/api/blink-rate'),
           fetch('http://127.0.0.1:5000/api/recent-activity'),
           fetch('http://127.0.0.1:5000/api/stats'),
-          fetch('http://127.0.0.1:5000/status')
+          fetch('http://127.0.0.1:5000/status'),
+          fetch('http://127.0.0.1:5000/api/10min-average'),
+          fetch('http://127.0.0.1:5000/api/today-entries'),
+          fetch('http://127.0.0.1:5000/api/last-minute-average'),
+          fetch('http://127.0.0.1:5000/api/last-entry')
         ]);
-    
         setBlinkRateData(await rateRes.json());
         setRecentActivity(await activityRes.json());
         setCurrentStats(await statsRes.json());
         const statusData = await statusRes.json();
         setTrackingStatus(statusData.status);
         setIsTracking(statusData.running);
+        setTenMinAvg(await tenMinRes.json());
+        setTodayEntries(await todayEntriesRes.json());
+        setLastMinuteAvg(await lastMinRes.json());
+        setLastEntry(await lastEntryRes.json());
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
-  
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
@@ -570,21 +580,45 @@ const BlinkAnalyticsDashboard = () => {
           </div>
         </div>
         {/* Stats Cards */}
-        <div style={styles.statsGrid}>
+        <div style={{ ...styles.statsGrid, gridTemplateColumns: 'repeat(6, 1fr)' }}>
+          {/* Last Entry Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
-              <h3 style={styles.statsTitle}>Average Blink Count</h3>
+              <h3 style={styles.statsTitle}>Last Entry</h3>
+              <Eye size={16} color="#d1d5db" />
+            </div>
+            <div style={styles.statsValue}>
+              {lastEntry.blink_count !== null ? `${lastEntry.blink_count} blinks` : 'N/A'}
+            </div>
+            <p style={styles.statsSubtext}>
+              {lastEntry.timestamp ? `at ${lastEntry.timestamp}` : 'No data'}
+            </p>
+          </div>
+          {/* Last Minute Average Tile */}
+          <div style={styles.statsCard}>
+            <div style={styles.statsHeader}>
+              <h3 style={styles.statsTitle}>Last Minute Count</h3>
               <HelpCircle size={16} color="#d1d5db" />
             </div>
             <div style={styles.statsValue}>
-              {currentStats.averageBlinks.toFixed(1)} blinks/min
+              {lastMinuteAvg.average.toFixed(1)} blinks
             </div>
-            <p style={styles.statsSubtext}>Overall average</p>
           </div>
-
+          {/* 10-Minute Average Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
-              <h3 style={styles.statsTitle}>Last 20 Minutes</h3>
+              <h3 style={styles.statsTitle}>Last 10-Minute Avg</h3>
+              <HelpCircle size={16} color="#d1d5db" />
+            </div>
+            <div style={styles.statsValue}>
+              {tenMinAvg.average.toFixed(1)} blinks/min
+            </div>
+            <p style={styles.statsSubtext}>{tenMinAvg.count} entries</p>
+          </div>
+          {/* Last 20 Minutes Tile */}
+          <div style={styles.statsCard}>
+            <div style={styles.statsHeader}>
+              <h3 style={styles.statsTitle}>Last 20 Minutes Avg</h3>
               <HelpCircle size={16} color="#d1d5db" />
             </div>
             <div style={styles.statsValue}>
@@ -594,7 +628,18 @@ const BlinkAnalyticsDashboard = () => {
               +{Math.abs(currentStats.percentageAbove).toFixed(1)}% above average
             </p>
           </div>
-
+          {/* Today's Average Tile */}
+          <div style={styles.statsCard}>
+            <div style={styles.statsHeader}>
+              <h3 style={styles.statsTitle}>Today's Avg</h3>
+              <HelpCircle size={16} color="#d1d5db" />
+            </div>
+            <div style={styles.statsValue}>
+              {todayEntries.average.toFixed(1)} blinks/min
+            </div>
+            <p style={styles.statsSubtext}>{todayEntries.count} entries</p>
+          </div>
+          {/* Total Blinks Today Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
               <h3 style={styles.statsTitle}>Total Blinks Today</h3>

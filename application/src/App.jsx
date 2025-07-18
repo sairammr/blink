@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { Calendar, Eye, HelpCircle, TrendingUp, Settings, Power } from 'lucide-react';
+import CalendarPicker from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, sensitivity }) => {
   const [tempSensitivity, setTempSensitivity] = useState(sensitivity);
@@ -197,6 +199,9 @@ const BlinkAnalyticsDashboard = () => {
   const [trackingStatus, setTrackingStatus] = useState('Not Started');
   const [lastMinuteAvg, setLastMinuteAvg] = useState({ average: 0, count: 0 });
   const [lastEntry, setLastEntry] = useState({ timestamp: null, blink_count: null });
+  // Calendar and metrics state
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [dateMetrics, setDateMetrics] = useState({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: '' });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -229,6 +234,28 @@ const BlinkAnalyticsDashboard = () => {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch metrics when selectedDate changes
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const dateStr = selectedDate.toISOString().slice(0, 10);
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/metrics-by-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr })
+        });
+        if (res.ok) {
+          setDateMetrics(await res.json());
+        } else {
+          setDateMetrics({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: dateStr });
+        }
+      } catch {
+        setDateMetrics({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: dateStr });
+      }
+    };
+    if (selectedDate) fetchMetrics();
+  }, [selectedDate]);
 
   const handleStartTracking = async () => {
     try {
@@ -273,7 +300,8 @@ const BlinkAnalyticsDashboard = () => {
     container: {
       minHeight: '100vh',
       backgroundColor: 'white',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      overflow: 'hidden',
     },
     header: {
       backgroundColor: 'white',
@@ -576,7 +604,7 @@ const BlinkAnalyticsDashboard = () => {
           <h1 style={styles.pageTitle}>Blink Data Analysis</h1>
           <div style={styles.dateInfo}>
             <Calendar size={16} />
-            <span>15/06/2025</span>
+            <span>{new Date().toLocaleDateString()}</span>
           </div>
         </div>
         {/* Stats Cards */}
@@ -687,6 +715,23 @@ const BlinkAnalyticsDashboard = () => {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+                    {/* Calendar and Metrics at the bottom */}
+        <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', marginTop: '48px', justifyContent: 'start' }}>
+          <div>
+            <CalendarPicker
+              onChange={setSelectedDate}
+              value={selectedDate}
+              maxDate={new Date()}
+            />
+          </div>
+          <div style={{ minWidth: 220, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24 }}>
+            <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 8 }}>Metrics for {dateMetrics.date}</h3>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Average: <b>{dateMetrics.average_blinks}</b> blinks/min</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Highest: <b>{dateMetrics.max_blinks}</b> blinks/min</div>
+            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Lowest: <b>{dateMetrics.min_blinks}</b> blinks/min</div>
+            <div style={{ fontSize: 12, color: '#9ca3af' }}>{dateMetrics.count} entries</div>
+          </div>
+        </div>
           </div>
 
           {/* Recent Activity */}

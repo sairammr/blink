@@ -33,22 +33,6 @@ class BlinkDBManager:
         self._init_db()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
-    def insert_mock_data(self, count=50):
-        """
-        Inserts `count` number of mock blink entries between 30 and 20 minutes ago from current time.
-        """
-        now = datetime.now()
-        earliest = now - timedelta(minutes=30)
-        latest = now - timedelta(minutes=20)
-
-        for _ in range(count):
-            # Generate a timestamp between earliest and latest
-            delta_seconds = random.randint(0, int((latest - earliest).total_seconds()))
-            timestamp = earliest + timedelta(seconds=delta_seconds)
-            timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-            blink_count = random.randint(1, 5)
-            self.insert_blink(timestamp_str, blink_count)
-            print(f"Inserted {blink_count} blinks at {timestamp_str}")
 
     def _init_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -229,6 +213,33 @@ class BlinkDBManager:
             return {"timestamp": ts, "blink_count": count}
         else:
             return {"timestamp": None, "blink_count": None}
+
+    def get_metrics_by_date(self, date_str):
+        """Fetch metrics for a given date: average, highest, and lowest blinks per minute."""
+        with sqlite3.connect(self.db_path) as conn:
+            c = conn.cursor()
+            c.execute('''SELECT timestamp, blink_count FROM blink_data WHERE timestamp LIKE ?''', (f"{date_str}%",))
+            rows = c.fetchall()
+        valid_counts = []
+        for ts, count in rows:
+            dt = self._parse_timestamp(ts)
+            if dt:
+                valid_counts.append(count)
+        if valid_counts:
+            avg_blinks = round(sum(valid_counts) / len(valid_counts), 1)
+            max_blinks = max(valid_counts)
+            min_blinks = min(valid_counts)
+        else:
+            avg_blinks = 0
+            max_blinks = 0
+            min_blinks = 0
+        return {
+            "date": date_str,
+            "average_blinks": avg_blinks,
+            "max_blinks": max_blinks,
+            "min_blinks": min_blinks,
+            "count": len(valid_counts)
+        }
 
     def stop(self):
         self.running = False
@@ -470,7 +481,6 @@ def show_critical_alert(message):
 config_manager = ConfigManager()
 tracker = EyeTracker()
 db_manager = BlinkDBManager()
-db_manager.insert_mock_data()
 
 # Flask endpoints
 @app.route('/start', methods=['POST'])
@@ -560,6 +570,15 @@ def last_minute_average():
 @app.route('/api/last-entry')
 def last_entry():
     return jsonify(db_manager.get_last_entry())
+
+@app.route('/api/metrics-by-date', methods=['POST'])
+def metrics_by_date():
+    data = request.json
+    date_str = data.get('date')  # Expecting 'YYYY-MM-DD'
+    if not date_str:
+        return jsonify({"error": "Missing date parameter"}), 400
+    metrics = db_manager.get_metrics_by_date(date_str)
+    return jsonify(metrics)
 
 #@app.route('/api/alert', methods=['POST'])
 @app.route('/test-alert', methods=['POST'])

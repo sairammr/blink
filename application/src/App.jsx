@@ -669,7 +669,6 @@ const BlinkAnalyticsDashboard = () => {
             <p style={styles.statsSubtext}>Updated just now</p>
           </div>
         </div>
-
         {/* Charts Section */}
         <div style={styles.chartsGrid}>
           {/* Blink Rate Chart */}
@@ -705,23 +704,22 @@ const BlinkAnalyticsDashboard = () => {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-                    {/* Calendar and Metrics at the bottom */}
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', marginTop: '48px', justifyContent: 'start' }}>
-          <div>
-            <CalendarPicker
-              onChange={setSelectedDate}
-              value={selectedDate}
-              maxDate={new Date()}
-            />
-          </div>
-          <div style={{ minWidth: 220, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 8 }}>Metrics for {dateMetrics.date}</h3>
-            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Average: <b>{dateMetrics.average_blinks}</b> blinks/min</div>
-            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Highest: <b>{dateMetrics.max_blinks}</b> blinks/min</div>
-            <div style={{ fontSize: 14, color: '#374151', marginBottom: 6 }}>Lowest: <b>{dateMetrics.min_blinks}</b> blinks/min</div>
-            <div style={{ fontSize: 12, color: '#9ca3af' }}>{dateMetrics.count} entries</div>
-          </div>
-        </div>
+            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', marginTop: '48px', justifyContent: 'start' }}>
+              <div>
+                <CalendarPicker
+                  onChange={setSelectedDate}
+                  value={selectedDate}
+                  maxDate={new Date()}
+                />
+              </div>
+              <div style={{ minWidth: 440, minHeight: 230, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24 }}>
+                <h3 style={{ fontSize: 24, fontWeight: 600, margin: 0, marginBottom: 8 }}>Metrics for specific date - {dateMetrics.date}</h3>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Average: <b>{dateMetrics.average_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Highest: <b>{dateMetrics.max_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Lowest: <b>{dateMetrics.min_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 16, color: '#9ca3af' }}>{dateMetrics.count} entries</div>
+              </div>
+            </div>
           </div>
 
           {/* Recent Activity */}

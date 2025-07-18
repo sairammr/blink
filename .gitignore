@@ -6,3 +6,4 @@ Python/blinks_per_minute.db
 *.db
 /server/__pycache__
 /server/venv/
+/server/build

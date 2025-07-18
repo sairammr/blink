@@ -1,5 +1,6 @@
 import cv2
 from cvzone.FaceMeshModule import FaceMeshDetector
+import customtkinter as ctk
 import time
 import threading
 import datetime
@@ -13,7 +14,13 @@ from datetime import datetime, timedelta
 import random
 from config_manager import ConfigManager
 import tkinter as tk
+from tkinter import ttk
+import ctypes
+import threading
 from threading import Thread
+from flask import request, jsonify
+import logging
+
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -347,19 +354,43 @@ class EyeTracker:
         }
 
 # Function to show a topmost Tkinter alert window
+import tkinter as tk
+from tkinter import ttk
+import ctypes
+import threading
+
 def show_critical_alert(message):
-    def _show():
-        root = tk.Tk()
-        root.title("CRITICAL ALERT")
-        root.attributes('-topmost', True)
-        root.geometry('400x150')
-        root.resizable(False, False)
-        label = tk.Label(root, text=message, font=("Arial", 14), fg="red", wraplength=380)
-        label.pack(pady=30)
-        btn = tk.Button(root, text="OK", command=root.destroy, font=("Arial", 12, "bold"))
-        btn.pack(pady=10)
+    def alert_thread():
+        ctk.set_appearance_mode("dark")  # Dark background
+        ctk.set_default_color_theme("dark-blue")
+
+        root = ctk.CTk()
+        root.title("Critical Alert")
+        root.geometry("450x200")
+        root.attributes("-topmost", True)
+        root.attributes("-fullscreen", True)
+        root.configure(bg="black")
+        root.wm_attributes("-alpha", 0.92)
+
+        # Centered pop-up frame
+        frame = ctk.CTkFrame(root, corner_radius=20)
+        frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        # Message Label
+        label = ctk.CTkLabel(frame, text=message, font=("Segoe UI", 18, "bold"), text_color="white", wraplength=400)
+        label.pack(padx=30, pady=25)
+
+        # Acknowledge Button
+        button = ctk.CTkButton(frame, text="Acknowledge", fg_color="#d9534f", hover_color="#c9302c",
+                               font=("Segoe UI", 14, "bold"), corner_radius=10,
+                               command=root.destroy)
+        button.pack(pady=(0, 20))
+
         root.mainloop()
-    Thread(target=_show, daemon=True).start()
+
+    threading.Thread(target=alert_thread, daemon=True).start()
+
+
 
 # Create global tracker and DB manager
 config_manager = ConfigManager()
@@ -443,9 +474,21 @@ def blink_stats():
 #@app.route('/api/alert', methods=['POST'])
 @app.route('/test-alert', methods=['POST'])
 def test_alert():
-    message = request.json.get("message", "This is a test critical alert!")
-    show_critical_alert(message)
-    return jsonify({"status": "Test alert triggered"}), 200
+    try:
+        data = request.get_json(silent=True) or {}
+        message = data.get("message", "").strip()
+
+        if not message:
+            message = "⚠️ Warning Blink now!"
+
+        logging.info(f"[ALERT_TRIGGERED] Message received: {message}")
+        show_critical_alert(message)
+
+        return jsonify({"status": "Test alert triggered", "message": message}), 200
+
+    except Exception as e:
+        logging.error(f"[ALERT_FAILED] {str(e)}")
+        return jsonify({"status": "Error", "error": str(e)}), 500
 
 if __name__ == '__main__':
     tracker.start_tracking()

@@ -3,6 +3,7 @@ from cvzone.FaceMeshModule import FaceMeshDetector
 import customtkinter as ctk
 import time
 import threading
+import random
 import datetime
 import json
 import os
@@ -26,7 +27,17 @@ from tkinter import ttk
 import ctypes
 import threading
 
+MOTIVATIONAL_MESSAGES = [
+    "Don't forget to blink—your eyes need a break too!",
+    "Blink now! Your tears are waiting to refresh your eyes.",
+    "Your eyes called—they're thirsty. Blink!",
+    "Blinking is your eye's built-in refresh button.",
+    "Keep the dryness away—just a blink at a time.",
+    "Don't stare too long—remember the blink rule: every 20 minutes!"
+    ]
+
 def show_critical_alert(message):
+    
     def alert_thread():
         ctk.set_appearance_mode("dark")  # Dark background
         ctk.set_default_color_theme("dark-blue")
@@ -397,10 +408,10 @@ class EyeTracker:
             return
 
         if blink_rate < self.LOW_BLINK_RATE:
-            self.last_alert = f"Warning: Very low blink rate detected ({blink_rate:.1f} bpm)! Please take a break."
+            self.last_alert = f"Warning: Very low blink rate detected ({blink_rate:.1f} bpm)! Please take a break.\n\n{motivational}"
             self.last_alert_time = current_time
         elif blink_rate < self.NORMAL_BLINK_RATE:
-            self.last_alert = f"Your blink rate ({blink_rate:.1f} bpm) is below average. Try the 20-20-20 rule."
+            self.last_alert = f"Your blink rate ({blink_rate:.1f} bpm) is below average. Try the 20-20-20 rule.\n\n{motivational}"
             self.last_alert_time = current_time
 
         self.update_status(blink_rate)
@@ -590,14 +601,17 @@ def test_alert():
     try:
         data = request.get_json(silent=True) or {}
         message = data.get("message", "").strip()
+        motivational = random.choice(MOTIVATIONAL_MESSAGES)
 
         if not message:
             message = "⚠️ Warning Blink now!"
 
-        logging.info(f"[ALERT_TRIGGERED] Message received: {message}")
-        show_critical_alert(message)
+        full_message = f"{message}\n\n{motivational}"
 
-        return jsonify({"status": "Test alert triggered", "message": message}), 200
+        logging.info(f"[ALERT_TRIGGERED] Message received: {full_message}")
+        show_critical_alert(full_message)
+
+        return jsonify({"status": "Test alert triggered", "message": full_message}), 200
 
     except Exception as e:
         logging.error(f"[ALERT_FAILED] {str(e)}")

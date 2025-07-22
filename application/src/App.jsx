@@ -207,14 +207,14 @@ const BlinkAnalyticsDashboard = () => {
     const fetchData = async () => {
       try {
         const [rateRes, activityRes, statsRes, statusRes, tenMinRes, todayEntriesRes, lastMinRes, lastEntryRes] = await Promise.all([
-          fetch('http://127.0.0.1:5000/api/blink-rate'),
-          fetch('http://127.0.0.1:5000/api/recent-activity'),
-          fetch('http://127.0.0.1:5000/api/stats'),
-          fetch('http://127.0.0.1:5000/status'),
-          fetch('http://127.0.0.1:5000/api/10min-average'),
-          fetch('http://127.0.0.1:5000/api/today-entries'),
-          fetch('http://127.0.0.1:5000/api/last-minute-average'),
-          fetch('http://127.0.0.1:5000/api/last-entry')
+          fetch('http://127.0.0.1:9783/api/blink-rate'),
+          fetch('http://127.0.0.1:9783/api/recent-activity'),
+          fetch('http://127.0.0.1:9783/api/stats'),
+          fetch('http://127.0.0.1:9783/status'),
+          fetch('http://127.0.0.1:9783/api/10min-average'),
+          fetch('http://127.0.0.1:9783/api/today-entries'),
+          fetch('http://127.0.0.1:9783/api/last-minute-average'),
+          fetch('http://127.0.0.1:9783/api/last-entry')
         ]);
         setBlinkRateData(await rateRes.json());
         setRecentActivity(await activityRes.json());
@@ -240,7 +240,7 @@ const BlinkAnalyticsDashboard = () => {
     const fetchMetrics = async () => {
       const dateStr = selectedDate.toISOString().slice(0, 10);
       try {
-        const res = await fetch('http://127.0.0.1:5000/api/metrics-by-date', {
+        const res = await fetch('http://127.0.0.1:9783/api/metrics-by-date', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ date: dateStr })
@@ -259,7 +259,7 @@ const BlinkAnalyticsDashboard = () => {
 
   const handleStartTracking = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/start', { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:9783/start', { method: 'POST' });
       if (response.ok) {
         setIsTracking(true);
       }
@@ -270,7 +270,7 @@ const BlinkAnalyticsDashboard = () => {
 
   const handleStopTracking = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/stop', { method: 'POST' });
+      const response = await fetch('http://127.0.0.1:9783/stop', { method: 'POST' });
       if (response.ok) {
         setIsTracking(false);
       }
@@ -281,7 +281,7 @@ const BlinkAnalyticsDashboard = () => {
 
   const handleSensitivityChange = async (value) => {
     try {
-      const response = await fetch('http://127.0.0.1:5000/config', {
+      const response = await fetch('http://127.0.0.1:9783/config', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

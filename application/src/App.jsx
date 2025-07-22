@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { Calendar, Eye, HelpCircle, TrendingUp, Settings, Power } from 'lucide-react';
+import CalendarPicker from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, sensitivity }) => {
   const [tempSensitivity, setTempSensitivity] = useState(sensitivity);
@@ -189,36 +191,71 @@ const BlinkAnalyticsDashboard = () => {
     totalToday: 24580,
     percentageAbove: 26.2
   });
+  const [tenMinAvg, setTenMinAvg] = useState({ average: 0, count: 0 });
+  const [todayEntries, setTodayEntries] = useState({ average: 0, count: 0 });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [sensitivity, setSensitivity] = useState(34);
   const [trackingStatus, setTrackingStatus] = useState('Not Started');
+  const [lastMinuteAvg, setLastMinuteAvg] = useState({ average: 0, count: 0 });
+  const [lastEntry, setLastEntry] = useState({ timestamp: null, blink_count: null });
+  // Calendar and metrics state
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [dateMetrics, setDateMetrics] = useState({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: '' });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [rateRes, activityRes, statsRes, statusRes] = await Promise.all([
+        const [rateRes, activityRes, statsRes, statusRes, tenMinRes, todayEntriesRes, lastMinRes, lastEntryRes] = await Promise.all([
           fetch('http://127.0.0.1:5000/api/blink-rate'),
           fetch('http://127.0.0.1:5000/api/recent-activity'),
           fetch('http://127.0.0.1:5000/api/stats'),
-          fetch('http://127.0.0.1:5000/status')
+          fetch('http://127.0.0.1:5000/status'),
+          fetch('http://127.0.0.1:5000/api/10min-average'),
+          fetch('http://127.0.0.1:5000/api/today-entries'),
+          fetch('http://127.0.0.1:5000/api/last-minute-average'),
+          fetch('http://127.0.0.1:5000/api/last-entry')
         ]);
-    
         setBlinkRateData(await rateRes.json());
         setRecentActivity(await activityRes.json());
         setCurrentStats(await statsRes.json());
         const statusData = await statusRes.json();
         setTrackingStatus(statusData.status);
         setIsTracking(statusData.running);
+        setTenMinAvg(await tenMinRes.json());
+        setTodayEntries(await todayEntriesRes.json());
+        setLastMinuteAvg(await lastMinRes.json());
+        setLastEntry(await lastEntryRes.json());
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
-  
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch metrics when selectedDate changes
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const dateStr = selectedDate.toISOString().slice(0, 10);
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/metrics-by-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr })
+        });
+        if (res.ok) {
+          setDateMetrics(await res.json());
+        } else {
+          setDateMetrics({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: dateStr });
+        }
+      } catch {
+        setDateMetrics({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: dateStr });
+      }
+    };
+    if (selectedDate) fetchMetrics();
+  }, [selectedDate]);
 
   const handleStartTracking = async () => {
     try {
@@ -263,7 +300,8 @@ const BlinkAnalyticsDashboard = () => {
     container: {
       minHeight: '100vh',
       backgroundColor: 'white',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      overflow: 'hidden',
     },
     header: {
       backgroundColor: 'white',
@@ -566,25 +604,39 @@ const BlinkAnalyticsDashboard = () => {
           <h1 style={styles.pageTitle}>Blink Data Analysis</h1>
           <div style={styles.dateInfo}>
             <Calendar size={16} />
-            <span>15/06/2025</span>
+            <span>{new Date().toLocaleDateString()}</span>
           </div>
         </div>
         {/* Stats Cards */}
-        <div style={styles.statsGrid}>
+        <div style={{ ...styles.statsGrid, gridTemplateColumns: 'repeat(5, 1fr)' }}>
+          {/* Last Entry Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
-              <h3 style={styles.statsTitle}>Average Blink Count</h3>
+              <h3 style={styles.statsTitle}>Last Entry</h3>
+              <Eye size={16} color="#d1d5db" />
+            </div>
+            <div style={styles.statsValue}>
+              {lastEntry.blink_count !== null ? `${lastEntry.blink_count} blinks` : 'N/A'}
+            </div>
+            <p style={styles.statsSubtext}>
+              {lastEntry.timestamp ? `at ${lastEntry.timestamp}` : 'No data'}
+            </p>
+          </div>
+          {/* 10-Minute Average Tile */}
+          <div style={styles.statsCard}>
+            <div style={styles.statsHeader}>
+              <h3 style={styles.statsTitle}>Last 10-Minute Avg</h3>
               <HelpCircle size={16} color="#d1d5db" />
             </div>
             <div style={styles.statsValue}>
-              {currentStats.averageBlinks.toFixed(1)} blinks/min
+              {tenMinAvg.average.toFixed(1)} blinks/min
             </div>
-            <p style={styles.statsSubtext}>Overall average</p>
+            <p style={styles.statsSubtext}>{tenMinAvg.count} entries</p>
           </div>
-
+          {/* Last 20 Minutes Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
-              <h3 style={styles.statsTitle}>Last 20 Minutes</h3>
+              <h3 style={styles.statsTitle}>Last 20 Minutes Avg</h3>
               <HelpCircle size={16} color="#d1d5db" />
             </div>
             <div style={styles.statsValue}>
@@ -594,7 +646,18 @@ const BlinkAnalyticsDashboard = () => {
               +{Math.abs(currentStats.percentageAbove).toFixed(1)}% above average
             </p>
           </div>
-
+          {/* Today's Average Tile */}
+          <div style={styles.statsCard}>
+            <div style={styles.statsHeader}>
+              <h3 style={styles.statsTitle}>Today's Avg</h3>
+              <HelpCircle size={16} color="#d1d5db" />
+            </div>
+            <div style={styles.statsValue}>
+              {todayEntries.average.toFixed(1)} blinks/min
+            </div>
+            <p style={styles.statsSubtext}>{todayEntries.count} entries</p>
+          </div>
+          {/* Total Blinks Today Tile */}
           <div style={styles.statsCard}>
             <div style={styles.statsHeader}>
               <h3 style={styles.statsTitle}>Total Blinks Today</h3>
@@ -606,7 +669,6 @@ const BlinkAnalyticsDashboard = () => {
             <p style={styles.statsSubtext}>Updated just now</p>
           </div>
         </div>
-
         {/* Charts Section */}
         <div style={styles.chartsGrid}>
           {/* Blink Rate Chart */}
@@ -641,6 +703,22 @@ const BlinkAnalyticsDashboard = () => {
                   />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+            <div style={{ display: 'flex', gap: '32px', alignItems: 'flex-start', marginTop: '48px', justifyContent: 'start' }}>
+              <div>
+                <CalendarPicker
+                  onChange={setSelectedDate}
+                  value={selectedDate}
+                  maxDate={new Date()}
+                />
+              </div>
+              <div style={{ minWidth: 440, minHeight: 230, background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24 }}>
+                <h3 style={{ fontSize: 24, fontWeight: 600, margin: 0, marginBottom: 8 }}>Metrics for specific date - {dateMetrics.date}</h3>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Average: <b>{dateMetrics.average_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Highest: <b>{dateMetrics.max_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 20, color: '#374151', marginBottom: 6 }}>Lowest: <b>{dateMetrics.min_blinks}</b> blinks/min</div>
+                <div style={{ fontSize: 16, color: '#9ca3af' }}>{dateMetrics.count} entries</div>
+              </div>
             </div>
           </div>
 

@@ -619,4 +619,4 @@ def test_alert():
 
 if __name__ == '__main__':
     tracker.start_tracking()
-    app.run(host='0.0.0.0', port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=9783, threaded=True)

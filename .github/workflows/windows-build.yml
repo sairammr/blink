@@ -1,0 +1,45 @@
+name: Build and Bundle (Windows)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Build Python exe (PowerShell)
+        working-directory: application
+        run: |
+          pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "./scripts/build_py.ps1"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Node deps
+        working-directory: application
+        run: npm ci
+
+      - name: Build frontend & run tauri build
+        working-directory: application
+        env:
+          TAURI_SKIP_DISTRIBUTION: 'false'
+        run: |
+          npm run tauri:build
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-bundles
+          path: src-tauri/target/release/bundle/**

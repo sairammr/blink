@@ -28,4 +28,10 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  // 4. make sure Tauri APIs are available during build
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
 }));

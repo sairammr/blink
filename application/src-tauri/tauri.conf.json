@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.cse-licet.blink",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -30,6 +30,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "bin/blink.exe",
+      "../python-3.10.4-embed-amd64/**/*",
+      "../blink.py"
     ]
   }
 }

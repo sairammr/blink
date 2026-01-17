@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build:frontend": "vite build",
+    "build:py": "node ./scripts/build_py.cjs",
+    "build": "npm run build:py && npm run build:frontend",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:build": "npm run build && npm run tauri build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

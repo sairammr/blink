@@ -3,6 +3,8 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { Calendar, Eye, HelpCircle, TrendingUp, Settings, Power } from 'lucide-react';
 import CalendarPicker from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
+import { invoke } from "@tauri-apps/api/core";
+
 
 const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, sensitivity }) => {
   const [tempSensitivity, setTempSensitivity] = useState(sensitivity);
@@ -204,9 +206,20 @@ const BlinkAnalyticsDashboard = () => {
   const [dateMetrics, setDateMetrics] = useState({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: '' });
 
   useEffect(() => {
+    if (!isTracking) return;
+
     const fetchData = async () => {
       try {
-        const [rateRes, activityRes, statsRes, statusRes, tenMinRes, todayEntriesRes, lastMinRes, lastEntryRes] = await Promise.all([
+        const [
+          rateRes,
+          activityRes,
+          statsRes,
+          statusRes,
+          tenMinRes,
+          todayEntriesRes,
+          lastMinRes,
+          lastEntryRes
+        ] = await Promise.all([
           fetch('http://127.0.0.1:9783/api/blink-rate'),
           fetch('http://127.0.0.1:9783/api/recent-activity'),
           fetch('http://127.0.0.1:9783/api/stats'),
@@ -216,24 +229,28 @@ const BlinkAnalyticsDashboard = () => {
           fetch('http://127.0.0.1:9783/api/last-minute-average'),
           fetch('http://127.0.0.1:9783/api/last-entry')
         ]);
+
         setBlinkRateData(await rateRes.json());
         setRecentActivity(await activityRes.json());
         setCurrentStats(await statsRes.json());
+
         const statusData = await statusRes.json();
         setTrackingStatus(statusData.status);
-        setIsTracking(statusData.running);
+
         setTenMinAvg(await tenMinRes.json());
         setTodayEntries(await todayEntriesRes.json());
         setLastMinuteAvg(await lastMinRes.json());
         setLastEntry(await lastEntryRes.json());
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.warn("Backend not ready yet");
       }
     };
+
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+
+  }, [isTracking]);
 
   // Fetch metrics when selectedDate changes
   useEffect(() => {
@@ -257,25 +274,44 @@ const BlinkAnalyticsDashboard = () => {
     if (selectedDate) fetchMetrics();
   }, [selectedDate]);
 
+  const waitForBackend = async () => {
+    for (let i = 0; i < 10; i++) {
+      try {
+        const res = await fetch('http://127.0.0.1:9783/status');
+        if (res.ok) return;
+      } catch {}
+      await new Promise(r => setTimeout(r, 300));
+    }
+    throw new Error("Backend failed to start");
+  };
+
   const handleStartTracking = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:9783/start', { method: 'POST' });
-      if (response.ok) {
-        setIsTracking(true);
+      if (typeof invoke !== 'function') {
+        console.warn("Tauri 'invoke' is not available in this environment; ensure you're running inside Tauri.");
+        return;
       }
-    } catch (error) {
-      console.error('Error starting tracking:', error);
+      await invoke("start_python");
+      await waitForBackend();
+      setIsTracking(true);
+      setTrackingStatus("Running");
+    } catch (err) {
+      console.error("Failed to start tracking:", err);
     }
   };
 
+
   const handleStopTracking = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:9783/stop', { method: 'POST' });
-      if (response.ok) {
-        setIsTracking(false);
+      if (typeof invoke !== 'function') {
+        console.warn("Tauri 'invoke' is not available in this environment; ensure you're running inside Tauri.");
+        return;
       }
-    } catch (error) {
-      console.error('Error stopping tracking:', error);
+      await invoke("stop_python");
+      setIsTracking(false);
+      setTrackingStatus("Stopped");
+    } catch (err) {
+      console.error(err);
     }
   };
 

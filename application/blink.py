@@ -413,6 +413,7 @@ class EyeTracker:
         if current_time - self.last_alert_time < self.MIN_ALERT_INTERVAL:
             return
 
+        motivational = random.choice(MOTIVATIONAL_MESSAGES)
         if blink_rate < self.LOW_BLINK_RATE:
             self.last_alert = f"Warning: Very low blink rate detected ({blink_rate:.1f} bpm)! Please take a break.\n\n{motivational}"
             self.last_alert_time = current_time

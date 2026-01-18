@@ -6,11 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build:frontend": "vite build",
-    "build:py": "node ./scripts/build_py.cjs",
-    "build": "npm run build:py && npm run build:frontend",
+    "build": "npm run build:frontend",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:build": "npm run build && npm run tauri build"
+    "tauri:build": "npm run tauri build --debug"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

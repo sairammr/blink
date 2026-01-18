@@ -4,6 +4,10 @@ use std::sync::Mutex;
 use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
+use std::io::{BufRead, BufReader};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -60,6 +64,7 @@ fn start_python() -> Result<u32, String> {
             if let Ok(cur) = std::env::current_exe() {
                 if let Some(parent) = cur.parent() {
                     msg.push_str(&format!("  - {}\n", parent.join("python-3.10.4-embed-amd64").join("python.exe").display()));
+                    msg.push_str(&format!("  - {}\n", parent.join("_up_").join("python-3.10.4-embed-amd64").join("python.exe").display()));
                 }
             }
             if let Ok(cur) = std::env::current_dir() {
@@ -77,6 +82,7 @@ fn start_python() -> Result<u32, String> {
             if let Ok(cur) = std::env::current_exe() {
                 if let Some(parent) = cur.parent() {
                     msg.push_str(&format!("  - {}\n", parent.join("blink.py").display()));
+                    msg.push_str(&format!("  - {}\n", parent.join("_up_").join("blink.py").display()));
                 }
             }
             if let Ok(cur) = std::env::current_dir() {
@@ -91,16 +97,54 @@ fn start_python() -> Result<u32, String> {
     let working_dir = blink_script.parent()
         .ok_or_else(|| "Could not determine blink.py directory".to_string())?;
 
-    let child = Command::new(&python_exe)
-        .arg(&blink_script)
+    // Debug logging
+    eprintln!("[DEBUG] Python exe: {}", python_exe.display());
+    eprintln!("[DEBUG] blink.py script: {}", blink_script.display());
+    eprintln!("[DEBUG] Working directory: {}", working_dir.display());
+
+    let mut cmd = Command::new(&python_exe);
+    cmd.arg(&blink_script)
         .current_dir(working_dir)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
         .spawn()
         .map_err(|e| format!("Failed to spawn Python process: {} (Python: {}, Script: {})", e, python_exe.display(), blink_script.display()))?;
 
     let pid = child.id();
+
+    // Consume stdout and stderr in background threads to prevent pipe blocking
+    if let Some(stdout) = child.stdout.take() {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    eprintln!("[Python stdout] {}", line);
+                }
+            }
+        });
+    }
+
+    if let Some(stderr) = child.stderr.take() {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if let Ok(line) = line {
+                    eprintln!("[Python stderr] {}", line);
+                }
+            }
+        });
+    }
+
     *guard = Some(child);
     Ok(pid)
 }
@@ -151,6 +195,9 @@ fn debug_paths() -> String {
             let python_path = parent.join("python-3.10.4-embed-amd64").join("python.exe");
             info.push_str(&format!("Python path (exe parent): {} (exists: {})\n", 
                 python_path.display(), python_path.exists()));
+            let python_path_up = parent.join("_up_").join("python-3.10.4-embed-amd64").join("python.exe");
+            info.push_str(&format!("Python path (exe parent/_up_): {} (exists: {})\n", 
+                python_path_up.display(), python_path_up.exists()));
         }
     }
     
@@ -180,6 +227,11 @@ fn find_python_exe() -> Option<PathBuf> {
             let p: PathBuf = parent.join(dir_name).join(exe_name);
             if p.exists() {
                 return Some(p);
+            }
+            // Check in _up_ directory (NSIS/AppImage/etc specific)
+            let p_up: PathBuf = parent.join("_up_").join(dir_name).join(exe_name);
+            if p_up.exists() {
+                return Some(p_up);
             }
         }
     }
@@ -229,6 +281,11 @@ fn find_blink_py() -> Option<PathBuf> {
             let p: PathBuf = parent.join(script_name);
             if p.exists() {
                 return Some(p);
+            }
+            // Check in _up_ directory
+            let p_up: PathBuf = parent.join("_up_").join(script_name);
+            if p_up.exists() {
+                return Some(p_up);
             }
         }
     }

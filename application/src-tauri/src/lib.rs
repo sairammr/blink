@@ -6,6 +6,29 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 
+//PID file
+
+use std::fs;
+
+fn pid_file_path() -> PathBuf {
+    std::env::temp_dir().join("tauri_blink.pid")
+}
+
+fn save_pid(pid: u32) {
+    let _ = fs::write(pid_file_path(), pid.to_string());
+}
+
+fn load_pid() -> Option<u32> {
+    fs::read_to_string(pid_file_path())
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+}
+
+fn clear_pid() {
+    let _ = fs::remove_file(pid_file_path());
+}
+
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -50,54 +73,62 @@ fn find_blink_exe() -> Option<PathBuf> {
     None
 }
 
+//crash handling in case app crashes while and pid remains
+
+fn is_process_alive(pid: u32) -> bool {
+    #[cfg(windows)]
+    {
+        Command::new("tasklist")
+            .arg("/FI")
+            .arg(format!("PID eq {}", pid))
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+            .unwrap_or(false)
+    }
+
+    #[cfg(unix)]
+    {
+        Command::new("kill")
+            .arg("-0")
+            .arg(pid.to_string())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
+    }
+}
+
+
 #[tauri::command]
 fn start_python() -> Result<u32, String> {
-    let mut guard = CHILD_PROCESS.lock().map_err(|_| "process lock poisoned".to_string())?;
+    let mut guard = CHILD_PROCESS
+        .lock()
+        .map_err(|_| "process lock poisoned".to_string())?;
 
+    // Prevent double spawn (in-memory)
     if guard.is_some() {
         return Err("Process already running".into());
     }
 
-    let python_exe = find_python_exe()
-        .ok_or_else(|| {
-            let mut msg = "Embedded Python executable not found. Searched in:\n".to_string();
-            if let Ok(cur) = std::env::current_exe() {
-                if let Some(parent) = cur.parent() {
-                    msg.push_str(&format!("  - {}\n", parent.join("python-3.10.4-embed-amd64").join("python.exe").display()));
-                    msg.push_str(&format!("  - {}\n", parent.join("_up_").join("python-3.10.4-embed-amd64").join("python.exe").display()));
-                }
-            }
-            if let Ok(cur) = std::env::current_dir() {
-                msg.push_str(&format!("  - {}\n", cur.join("python-3.10.4-embed-amd64").join("python.exe").display()));
-                msg.push_str(&format!("  - {}\n", cur.join("application").join("python-3.10.4-embed-amd64").join("python.exe").display()));
-            }
-            msg.push_str(&format!("Current dir: {:?}\n", std::env::current_dir()));
-            msg.push_str(&format!("Current exe: {:?}", std::env::current_exe()));
-            msg
-        })?;
-    
-    let blink_script = find_blink_py()
-        .ok_or_else(|| {
-            let mut msg = "blink.py not found. Searched in:\n".to_string();
-            if let Ok(cur) = std::env::current_exe() {
-                if let Some(parent) = cur.parent() {
-                    msg.push_str(&format!("  - {}\n", parent.join("blink.py").display()));
-                    msg.push_str(&format!("  - {}\n", parent.join("_up_").join("blink.py").display()));
-                }
-            }
-            if let Ok(cur) = std::env::current_dir() {
-                msg.push_str(&format!("  - {}\n", cur.join("blink.py").display()));
-                msg.push_str(&format!("  - {}\n", cur.join("application").join("blink.py").display()));
-            }
-            msg.push_str(&format!("Current dir: {:?}\n", std::env::current_dir()));
-            msg
-        })?;
+    // Prevent double spawn (from stored PID)
+    if let Some(pid) = load_pid() {
+        if is_process_alive(pid) {
+            return Err(format!("Process already running with PID {}", pid));
+        } else {
+            clear_pid(); // stale corpse removed
+        }
+    }
 
-    // Get the directory containing blink.py for working directory
-    let working_dir = blink_script.parent()
+
+    let python_exe = find_python_exe()
+        .ok_or_else(|| "Embedded Python executable not found".to_string())?;
+
+    let blink_script = find_blink_py()
+        .ok_or_else(|| "blink.py not found".to_string())?;
+
+    let working_dir = blink_script
+        .parent()
         .ok_or_else(|| "Could not determine blink.py directory".to_string())?;
 
-    // Debug logging
     eprintln!("[DEBUG] Python exe: {}", python_exe.display());
     eprintln!("[DEBUG] blink.py script: {}", blink_script.display());
     eprintln!("[DEBUG] Working directory: {}", working_dir.display());
@@ -109,7 +140,7 @@ fn start_python() -> Result<u32, String> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // On Windows, hide the console window
+    // Hide console window on Windows
     #[cfg(windows)]
     {
         const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -118,69 +149,89 @@ fn start_python() -> Result<u32, String> {
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to spawn Python process: {} (Python: {}, Script: {})", e, python_exe.display(), blink_script.display()))?;
+        .map_err(|e| format!("Failed to spawn Python: {}", e))?;
 
     let pid = child.id();
 
-    // Consume stdout and stderr in background threads to prevent pipe blocking
+    // 🧠 Persist the PID
+    save_pid(pid);
+
+    // Drain stdout
     if let Some(stdout) = child.stdout.take() {
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    eprintln!("[Python stdout] {}", line);
-                }
+            for line in reader.lines().flatten() {
+                eprintln!("[Python stdout] {}", line);
             }
         });
     }
 
+    // Drain stderr
     if let Some(stderr) = child.stderr.take() {
         std::thread::spawn(move || {
             let reader = BufReader::new(stderr);
-            for line in reader.lines() {
-                if let Ok(line) = line {
-                    eprintln!("[Python stderr] {}", line);
-                }
+            for line in reader.lines().flatten() {
+                eprintln!("[Python stderr] {}", line);
             }
         });
     }
 
     *guard = Some(child);
+
     Ok(pid)
 }
 
+
 #[tauri::command]
 fn stop_python() -> Result<(), String> {
-    let mut guard = CHILD_PROCESS.lock().map_err(|_| "process lock poisoned".to_string())?;
-
-    if let Some(mut child) = guard.take() {
-        let pid = child.id();
-        // try graceful kill
-        if let Err(e) = child.kill() {
-            eprintln!("child.kill() failed: {}", e);
+    // First try in-memory process
+    if let Ok(mut guard) = CHILD_PROCESS.lock() {
+        if let Some(mut child) = guard.take() {
+            let pid = child.id();
+            let _ = child.kill();
+            let _ = child.wait();
+            clear_pid();
+            return Ok(());
         }
-        let _ = child.wait();
+    }
 
-        // On Windows, ensure entire process tree is terminated as a fallback
+    // Fallback: kill from stored PID
+    if let Some(pid) = load_pid() {
         #[cfg(windows)]
         {
-            let _ = Command::new("taskkill")
+            Command::new("taskkill")
                 .args(["/PID", &pid.to_string(), "/T", "/F"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+                .spawn()
+                .map_err(|e| e.to_string())?;
         }
 
+        #[cfg(unix)]
+        {
+            Command::new("kill")
+                .arg("-9")
+                .arg(pid.to_string())
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+
+        clear_pid();
         return Ok(());
     }
 
-    Err("Process not running".into())
+    Err("No running Python process found".into())
 }
+
 
 #[tauri::command]
 fn get_python_pid() -> Option<u32> {
-    CHILD_PROCESS.lock().ok().and_then(|g| g.as_ref().map(|c| c.id()))
+    if let Ok(guard) = CHILD_PROCESS.lock() {
+        if let Some(child) = guard.as_ref() {
+            return Some(child.id());
+        }
+    }
+    load_pid()
 }
+
 
 #[tauri::command]
 fn debug_paths() -> String {

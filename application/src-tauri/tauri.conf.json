@@ -34,7 +34,8 @@
     "resources": [
       "bin/blink.exe",
       "../python-3.10.4-embed-amd64/**/*",
-      "../blink.py"
+      "../blink.py",
+      "../application/TestApp.exe"
     ]
   }
 }

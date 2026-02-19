@@ -35,7 +35,7 @@
       "bin/blink.exe",
       "../python-3.10.4-embed-amd64/**/*",
       "../blink.py",
-      "../application/TestApp.exe"
+      "../TestApp.exe"
     ]
   }
 }

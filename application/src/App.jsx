@@ -205,6 +205,30 @@ const BlinkAnalyticsDashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dateMetrics, setDateMetrics] = useState({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: '' });
 
+  // On load (and refresh): check if backend is already running and sync UI state
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:9783/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.running) {
+            setIsTracking(true);
+            setTrackingStatus(data.status || 'Running');
+            if (data.threshold != null) setSensitivity(data.threshold);
+          } else {
+            setIsTracking(false);
+            setTrackingStatus(data.status || 'Stopped');
+          }
+        }
+      } catch {
+        setIsTracking(false);
+        setTrackingStatus('Not Started');
+      }
+    };
+    checkBackend();
+  }, []);
+
   useEffect(() => {
     if (!isTracking) return;
 
@@ -317,16 +341,20 @@ const BlinkAnalyticsDashboard = () => {
 
   const handleSensitivityChange = async (value) => {
     try {
-      const response = await fetch('http://127.0.0.1:9783/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ threshold: parseInt(value) }),
-      });
-      if (response.ok) {
-        setSensitivity(parseInt(value));
+      if (typeof invoke !== 'function') {
+         console.warn("Tauri 'invoke' is not available");
+         return;
       }
+      
+      // Update config via Rust backend (which handles restart)
+      await invoke('update_sensitivity', { value: parseInt(value) });
+      
+      // Wait for backend to come back up
+      await waitForBackend();
+      
+      setSensitivity(parseInt(value));
+      setIsTracking(true);
+      setTrackingStatus("Running");
     } catch (error) {
       console.error('Error updating sensitivity:', error);
     }

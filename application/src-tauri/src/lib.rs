@@ -9,6 +9,20 @@ use std::io::{BufRead, BufReader};
 //PID file
 
 use std::fs;
+use serde_json::Value;
+
+fn get_config_path() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let app_data = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(app_data).join("blink").join("blink_config.json")
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home).join(".config").join("blink").join("blink_config.json")
+    }
+}
 
 fn pid_file_path() -> PathBuf {
     std::env::temp_dir().join("tauri_blink.pid")
@@ -440,6 +454,24 @@ fn run_python_code(code: String) -> Result<PythonExecutionResult, String> {
     })
 }
 
+#[tauri::command]
+fn update_sensitivity(value: u32) -> Result<(), String> {
+    // 1. If backend is running, persist threshold to MongoDB via POST /config
+    let body = serde_json::json!({ "threshold": value });
+    let _ = reqwest::blocking::Client::new()
+        .post("http://127.0.0.1:9783/config")
+        .json(&body)
+        .send();
+
+    // 2. Stop the Python process
+    let _ = stop_python();
+
+    // 3. Restart Python process (will load threshold from Mongo on startup)
+    start_python().map_err(|e| format!("Failed to restart Python: {}", e))?;
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -451,7 +483,8 @@ pub fn run() {
             get_python_pid,
             run_python_file,
             run_python_code,
-            debug_paths
+            debug_paths,
+            update_sensitivity
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

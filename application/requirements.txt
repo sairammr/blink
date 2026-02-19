@@ -1,0 +1,2 @@
+pymongo>=4.0.0
+getmac>=0.9.0

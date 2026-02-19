@@ -12,7 +12,7 @@
 - **Analytics Dashboard:** Visualizes blink rate, trends, and recent activity with interactive charts.
 - **User Controls:** Start/stop tracking, adjust sensitivity, and save session data from an intuitive UI.
 - **Configurable Sensitivity:** Fine-tune blink detection threshold for individual needs.
-- **Local Data Storage:** All data is stored locally for privacy (SQLite for blink data, JSON for config).
+- **MongoDB Data Storage:** Blink data and sensitivity (threshold) are stored in MongoDB, keyed by a unique device ID (e.g. MAC-derived). Optional env `MONGODB_URI` overrides the default URI; if the network fails, threshold falls back to 34.
 - **Cross-Platform:** Desktop app powered by Tauri, React, and Vite.
 
 ---
@@ -24,11 +24,11 @@
 - **UI:** Provides a dashboard with real-time stats, charts, and controls.
 - **Communication:** Sends HTTP requests to the backend for tracking control, analytics, and configuration.
 
-### 2. Backend (`/server`)
-- **Tech:** Python, Flask, OpenCV, cvzone (FaceMeshModule), SQLite.
+### 2. Backend (`/application/blink.py`)
+- **Tech:** Python, Flask, OpenCV, cvzone (FaceMeshModule), MongoDB (pymongo).
 - **Detection:** Captures webcam frames, detects blinks using FaceMesh, and logs data.
-- **Data Management:** Stores blink events and stats in SQLite; manages sensitivity/configuration via JSON.
-- **API:** Exposes endpoints for all frontend operations (start, stop, status, analytics, config, etc).
+- **Data Management:** Stores blink events and stats in MongoDB per device; sensitivity (threshold) is stored in MongoDB and applied on each restart (fallback 34 if network fails). Mongo URI from env `MONGODB_URI` or hardcoded default.
+- **API:** Exposes endpoints for all frontend operations (start, stop, status, analytics, config, device-id, etc.).
 
 ---
 
@@ -38,7 +38,7 @@
 2. **Begin Tracking:** Start blink detection from the dashboard. The backend activates your webcam and begins processing frames in real time.
 3. **Blink Detection:** The backend uses FaceMesh to identify eye landmarks and applies a configurable threshold to detect blinks. Each blink is timestamped and saved.
 4. **Analytics & Control:** The frontend fetches statistics (blink rates, averages, trends) and displays them. Users can adjust sensitivity, pause/resume tracking, or save sessions.
-5. **Persistence:** Data is stored locally (SQLite for events, JSON for config), ensuring privacy and offline access.
+5. **Persistence:** Blink data and sensitivity are stored in MongoDB per device; on each restart the app registers the device (by device ID) and loads threshold from Mongo (fallback 34 if unreachable).
 
 ---
 
@@ -102,13 +102,9 @@ This will launch the Tauri desktop app.
 ---
 
 ## Configuration
-- **Sensitivity Threshold:**
-  - Adjust from the dashboard UI.
-  - Value is stored in `server/blink_config.json` and applied in real time.
-- **Database:**
-  - Blink events are stored in `server/blink_data.db` (SQLite).
-- **Session Data:**
-  - Saved in the `sessions/` directory as JSON files.
+- **MongoDB:** Set `MONGODB_URI` in the environment to override the default connection string (default: `mongodb://localhost:27017`). Used for blink data and sensitivity (threshold) per device.
+- **Sensitivity (Threshold):** Stored per device in MongoDB and applied on each server restart. If the network or MongoDB is unreachable, threshold **34** is used.
+- **Session Data:** Saved in the `sessions/` directory as JSON files.
 
 ---
 
@@ -124,6 +120,7 @@ This will launch the Tauri desktop app.
 - `GET /api/blink-rate` – Get today's blink rate data
 - `GET /api/recent-activity` – Get last 20 minutes activity
 - `GET /api/stats` – Get blink statistics
+- `GET /api/device-id` – Get current device ID (MongoDB per-device data)
 - `POST /test-alert` – To trigger an alert 
 - `POST /test-alert` (To trigger a custom alert )
   ```json
@@ -135,8 +132,8 @@ This will launch the Tauri desktop app.
 
 ## Technical Details
 - **Blink Detection:** Uses OpenCV for video capture and cvzone's FaceMeshModule for facial landmark detection. Blinks are detected by monitoring the vertical distance between eyelid landmarks, compared against a user-configurable threshold.
-- **Data Processing:** Blink events are queued and written to SQLite asynchronously for stability. Statistics are computed on demand for analytics.
-- **Config Management:** Sensitivity and other parameters are managed via a JSON config file, updated via API.
+- **Data Processing:** Blink events are queued and written to MongoDB (per device) asynchronously. Statistics are computed on demand for analytics.
+- **Threshold:** Sensitivity is stored in MongoDB per device and loaded on startup; fallback 34 on network failure. Updated via `POST /config`.
 - **Frontend-Backend Communication:** All control and data flows use HTTP APIs over `localhost`.
 
 ---
@@ -145,7 +142,7 @@ This will launch the Tauri desktop app.
 - **Threading:** Backend uses threading and queues to ensure non-blocking video processing and database writes.
 - **Persistence:** Data and configuration are safely persisted locally.
 - **Validation:** Sensitivity and config updates are validated before being applied.
-- **Privacy:** No data leaves your device; all processing and storage are local.
+- **Privacy:** Blink data and threshold are stored in your MongoDB instance (local or Atlas); device is identified by a stable device ID (e.g. MAC-derived).
 
 ---
 

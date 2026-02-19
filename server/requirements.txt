@@ -1,9 +1,0 @@
-wheel
-opencv-python
-cvzone
-tk
-Pillow
-mediapipe
-flask
-flask-cors
-customtkinter

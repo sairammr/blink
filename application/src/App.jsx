@@ -6,7 +6,7 @@ import 'react-calendar/dist/Calendar.css';
 import { invoke } from "@tauri-apps/api/core";
 
 
-const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, sensitivity }) => {
+const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, isTracking, isBusy, error, sensitivity }) => {
   const [tempSensitivity, setTempSensitivity] = useState(sensitivity);
 
   useEffect(() => {
@@ -136,27 +136,28 @@ const SettingsModal = ({ isOpen, onClose, onStart, onStop, onSensitivityChange, 
               style={{
                 ...styles.button,
                 ...styles.startButton,
-                ...(isTracking ? styles.disabledButton : {}),
+                ...(isTracking || isBusy ? styles.disabledButton : {}),
               }}
               onClick={onStart}
-              disabled={isTracking}
+              disabled={isTracking || isBusy}
             >
               <Power size={16} />
-              Start Tracking
+              {isBusy && !isTracking ? 'Starting...' : 'Start Tracking'}
             </button>
             <button
               style={{
                 ...styles.button,
                 ...styles.stopButton,
-                ...(!isTracking ? styles.disabledButton : {}),
+                ...(!isTracking || isBusy ? styles.disabledButton : {}),
               }}
               onClick={onStop}
-              disabled={!isTracking}
+              disabled={!isTracking || isBusy}
             >
               <Power size={16} />
               Stop Tracking
             </button>
           </div>
+          {error && <div style={{ color: '#EF4444', fontSize: '13px' }}>{error}</div>}
           <div style={styles.sliderContainer}>
             <label style={styles.sliderLabel}>Sensitivity: {tempSensitivity}</label>
             <input
@@ -188,11 +189,13 @@ const BlinkAnalyticsDashboard = () => {
   const [blinkRateData, setBlinkRateData] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [currentStats, setCurrentStats] = useState({
-    averageBlinks: 17.0,
-    last20Minutes: 21.5,
-    totalToday: 24580,
-    percentageAbove: 26.2
+    averageBlinks: 0,
+    last20Minutes: 0,
+    totalToday: 0,
+    percentageAbove: 0
   });
+  const [isBusy, setIsBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [tenMinAvg, setTenMinAvg] = useState({ average: 0, count: 0 });
   const [todayEntries, setTodayEntries] = useState({ average: 0, count: 0 });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -205,28 +208,29 @@ const BlinkAnalyticsDashboard = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [dateMetrics, setDateMetrics] = useState({ average_blinks: 0, max_blinks: 0, min_blinks: 0, count: 0, date: '' });
 
-  // On load (and refresh): check if backend is already running and sync UI state
+  // Keep UI state in sync with the real backend state (on load and every 2s),
+  // so the Start/Stop buttons and status dot never drift from reality.
   useEffect(() => {
+    let cancelled = false;
     const checkBackend = async () => {
       try {
         const res = await fetch('http://127.0.0.1:9783/status');
+        if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
-          if (data.running) {
-            setIsTracking(true);
-            setTrackingStatus(data.status || 'Running');
-            if (data.threshold != null) setSensitivity(data.threshold);
-          } else {
-            setIsTracking(false);
-            setTrackingStatus(data.status || 'Stopped');
-          }
+          setIsTracking(!!data.running);
+          setTrackingStatus(data.status || (data.running ? 'Running' : 'Stopped'));
+          if (data.threshold != null) setSensitivity(data.threshold);
         }
       } catch {
+        if (cancelled) return;
         setIsTracking(false);
         setTrackingStatus('Not Started');
       }
     };
     checkBackend();
+    const id = setInterval(checkBackend, 2000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   useEffect(() => {
@@ -258,8 +262,6 @@ const BlinkAnalyticsDashboard = () => {
         setRecentActivity(await activityRes.json());
         setCurrentStats(await statsRes.json());
 
-        const statusData = await statusRes.json();
-        setTrackingStatus(statusData.status);
 
         setTenMinAvg(await tenMinRes.json());
         setTodayEntries(await todayEntriesRes.json());
@@ -271,7 +273,7 @@ const BlinkAnalyticsDashboard = () => {
     };
 
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
 
   }, [isTracking]);
@@ -298,8 +300,8 @@ const BlinkAnalyticsDashboard = () => {
     if (selectedDate) fetchMetrics();
   }, [selectedDate]);
 
-  const waitForBackend = async () => {
-    for (let i = 0; i < 10; i++) {
+  const waitForBackend = async (tries = 10) => {
+    for (let i = 0; i < tries; i++) {
       try {
         const res = await fetch('http://127.0.0.1:9783/status');
         if (res.ok) return;
@@ -310,32 +312,48 @@ const BlinkAnalyticsDashboard = () => {
   };
 
   const handleStartTracking = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+    setActionError('');
+    setTrackingStatus('Starting...');
     try {
-      if (typeof invoke !== 'function') {
-        console.warn("Tauri 'invoke' is not available in this environment; ensure you're running inside Tauri.");
-        return;
+      try {
+        await invoke("start_python");
+      } catch (err) {
+        // Backend already running (e.g. UI lost sync) - just re-attach to it
+        if (!String(err).includes("already running")) throw err;
       }
-      await invoke("start_python");
-      await waitForBackend();
+      // Python needs a few seconds to load the camera + face model
+      await waitForBackend(60);
       setIsTracking(true);
       setTrackingStatus("Running");
     } catch (err) {
       console.error("Failed to start tracking:", err);
+      setActionError(`Could not start tracking: ${err?.message || err}`);
+      setIsTracking(false);
+      setTrackingStatus('Not Started');
+    } finally {
+      setIsBusy(false);
     }
   };
 
 
   const handleStopTracking = async () => {
+    if (isBusy) return;
+    setIsBusy(true);
+    setActionError('');
     try {
-      if (typeof invoke !== 'function') {
-        console.warn("Tauri 'invoke' is not available in this environment; ensure you're running inside Tauri.");
-        return;
-      }
       await invoke("stop_python");
+    } catch (err) {
+      // "No running process" just means it is already stopped
+      if (!String(err).includes("No running Python process")) {
+        console.error(err);
+        setActionError(`Could not stop tracking: ${err?.message || err}`);
+      }
+    } finally {
       setIsTracking(false);
       setTrackingStatus("Stopped");
-    } catch (err) {
-      console.error(err);
+      setIsBusy(false);
     }
   };
 
@@ -658,6 +676,8 @@ const BlinkAnalyticsDashboard = () => {
         onStop={handleStopTracking}
         onSensitivityChange={handleSensitivityChange}
         isTracking={isTracking}
+        isBusy={isBusy}
+        error={actionError}
         sensitivity={sensitivity}
       />
 
@@ -707,7 +727,7 @@ const BlinkAnalyticsDashboard = () => {
               {currentStats.last20Minutes.toFixed(1)} blinks/min
             </div>
             <p style={styles.statsSubtext}>
-              +{Math.abs(currentStats.percentageAbove).toFixed(1)}% above average
+              {Math.abs(currentStats.percentageAbove).toFixed(1)}% {currentStats.percentageAbove >= 0 ? 'above' : 'below'} average
             </p>
           </div>
           {/* Today's Average Tile */}

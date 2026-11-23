@@ -1,3 +1,5 @@
+import math
+from collections import deque
 import cv2
 from cvzone.FaceMeshModule import FaceMeshDetector
 import time
@@ -214,7 +216,7 @@ class MongoBlinkDBManager:
                 try:
                     self._db.blink_data.update_one(
                         {"device_id": self.device_id, "timestamp": timestamp},
-                        {"$inc": {"blink_count": count}},
+                        {"$max": {"blink_count": count}},
                         upsert=True,
                     )
                 except Exception:
@@ -222,8 +224,10 @@ class MongoBlinkDBManager:
             except Exception:
                 continue
 
-    def insert_blink(self, timestamp: str, count: int):
-        if count < 7:
+    def insert_blink(self, timestamp: str, count: int, final: bool = False):
+        # Called on every blink with the running total for the current minute
+        # (stored with $max, so it is idempotent); `final` marks a completed minute.
+        if final and count < 7:
             show_critical_alert(f"Blink count is too low: {count}")
         self.queue.put((timestamp, count))
 
@@ -426,14 +430,20 @@ class EyeTracker:
         self.LOW_BLINK_RATE = 8
 
         self.id_list = [22, 23, 24, 26, 110, 157, 158, 159, 160, 161, 130, 243]
-        self.L_ratio_list = []
-        self.R_ratio_list = []
         self.blink_counter = 0
-        self.counter = 0
         self.threshold = initial_threshold if initial_threshold is not None else DEFAULT_THRESHOLD
 
+        # Blink state machine (see process_eye_tracking)
+        self.open_history = deque(maxlen=150)  # ~5s of "eyes open" ratios
+        self.baseline = 0.0
+        self.last_ratio = 0.0
+        self.eye_closed = False
+        self.closed_since = 0.0
+        self.frame_times = deque(maxlen=30)
+        self.min_ratio_recent = 0.0
+
         self.cap = cv2.VideoCapture(0)
-        self.detector = FaceMeshDetector(maxFaces=4)
+        self.detector = FaceMeshDetector(maxFaces=1)
 
         self.status = "Not Started"
         self.elapsed_time = 0
@@ -445,6 +455,8 @@ class EyeTracker:
         self.blinks_this_minute = 0
 
     def process_eye_tracking(self, img, faces):
+        if not faces:
+            self.eye_closed = False  # face lost mid-closure must not count as a blink
         if faces:
             if self.start_time is None:
                 self.start_time = time.time()
@@ -460,55 +472,61 @@ class EyeTracker:
             rightLeft = face[362]
             rightRight = face[263]
 
-            LlengthHor, _ = self.detector.findDistance(leftLeft, leftRight)
-            LlengthVer, _ = self.detector.findDistance(leftUp, leftDown)
-            RlengthHor, _ = self.detector.findDistance(rightLeft, rightRight)
-            RlengthVer, _ = self.detector.findDistance(rightUp, rightDown)
+            def _dist(a, b):
+                return math.hypot(a[0] - b[0], a[1] - b[1])
 
-            Lratio = int((LlengthVer / LlengthHor) * 100)
-            self.L_ratio_list.append(Lratio)
-            if len(self.L_ratio_list) > 3:
-                self.L_ratio_list.pop(0)
-            LratioAvg = sum(self.L_ratio_list) / len(self.L_ratio_list)
+            LlengthHor = _dist(leftLeft, leftRight)
+            RlengthHor = _dist(rightLeft, rightRight)
+            if LlengthHor == 0 or RlengthHor == 0:
+                return
 
-            Rratio = int((RlengthVer / RlengthHor) * 100)
-            self.R_ratio_list.append(Rratio)
-            if len(self.R_ratio_list) > 3:
-                self.R_ratio_list.pop(0)
+            # Eye openness: lid gap / eye width, averaged over BOTH eyes (float, not truncated)
+            Lratio = _dist(leftUp, leftDown) / LlengthHor * 100
+            Rratio = _dist(rightUp, rightDown) / RlengthHor * 100
+            ratio = (Lratio + Rratio) / 2.0
+            self.last_ratio = ratio
+            now = time.monotonic()
+
+            # Closing level relative to this person's own open-eye baseline.
+            # Sensitivity slider 20..50 -> closes at 50%..80% of baseline.
+            close_frac = 0.65 + (self.threshold - 20) / 30.0 * 0.25
+            reopen_frac = min(close_frac + 0.10, 0.95)
+            self.frame_times.append(now)
 
             blink_detected = False
-            if Lratio > self.threshold:
-                if LratioAvg < self.threshold and self.counter == 0:
-                    blink_detected = True
-            elif Lratio > 29:
-                if (LratioAvg - Lratio) > 5 and self.counter == 0:
-                    blink_detected = True
+            if not self.eye_closed:
+                if len(self.open_history) >= 30:
+                    ordered = sorted(self.open_history)
+                    self.baseline = ordered[int(len(ordered) * 0.9)]  # robust "eyes open" level
+                    if ratio < self.baseline * close_frac:
+                        self.eye_closed = True
+                        self.closed_since = now
+                    else:
+                        self.open_history.append(ratio)
+                else:
+                    self.open_history.append(ratio)
             else:
-                if (LratioAvg - Lratio) > 2 and self.counter == 0:
-                    blink_detected = True
+                closed_for = now - self.closed_since
+                if ratio > self.baseline * reopen_frac:
+                    # Eye reopened: it is a blink only if the closure was short
+                    self.eye_closed = False
+                    if closed_for <= 0.7:  # a fast blink may span a single frame
+                        blink_detected = True
+                elif closed_for > 3.0:
+                    # Looking down / posture change, not a blink: relearn the baseline
+                    self.eye_closed = False
+                    self.open_history.clear()
 
             if blink_detected:
                 self.blink_counter += 1
                 self.blinks_this_minute += 1
-                self.counter = 1
-                print("Blink detected")
-
-            if self.counter != 0:
-                self.counter += 1
-                if self.counter > 10:
-                    self.counter = 0
+                print("Blink detected", flush=True)
+                # Write the running count for this minute right away so the dashboard is live
+                if self.last_minute is not None:
+                    db_manager.insert_blink(self.last_minute, self.blinks_this_minute)
 
             current_time = time.time()
             self.elapsed_time = current_time - self.start_time if self.start_time else 0
-
-            # Store per-minute blink data
-            current_minute = datetime.now().strftime('%Y-%m-%d %H:%M')
-            if self.last_minute is None:
-                self.last_minute = current_minute
-            elif current_minute != self.last_minute:
-                db_manager.insert_blink(self.last_minute, self.blinks_this_minute)
-                self.last_minute = current_minute
-                self.blinks_this_minute = 1  # Count the current blink
 
             if self.elapsed_time > 30:
                 self.blink_rate = self.blink_counter / (self.elapsed_time / 60)
@@ -536,9 +554,21 @@ class EyeTracker:
 
         self.update_status(blink_rate)
 
+    def _roll_minute(self):
+        """Advance the per-minute bucket. Runs every frame, with or without a face."""
+        current_minute = datetime.now().strftime('%Y-%m-%d %H:%M')
+        if self.last_minute is None:
+            self.last_minute = current_minute
+        elif current_minute != self.last_minute:
+            if self.blinks_this_minute > 0:
+                db_manager.insert_blink(self.last_minute, self.blinks_this_minute, final=True)
+            self.last_minute = current_minute
+            self.blinks_this_minute = 0
+
     def tracking_loop(self):
         while self.running:
             if not self.paused:
+                self._roll_minute()
                 success, img = self.cap.read()
                 if not success:
                     self.status = "Camera Error"
@@ -600,6 +630,11 @@ class EyeTracker:
             "running": self.running,
             "paused": self.paused,
             "blink_count": self.blink_counter,
+            "blinks_this_minute": self.blinks_this_minute,
+            "fps": round((len(self.frame_times) - 1) / (self.frame_times[-1] - self.frame_times[0]), 1)
+                   if len(self.frame_times) > 1 and self.frame_times[-1] > self.frame_times[0] else 0,
+            "eye_ratio": round(self.last_ratio, 1),
+            "eye_baseline": round(self.baseline, 1),
             "blink_rate": round(self.blink_rate, 1),
             "elapsed_time": round(self.elapsed_time, 1),
             "last_alert": self.last_alert,
